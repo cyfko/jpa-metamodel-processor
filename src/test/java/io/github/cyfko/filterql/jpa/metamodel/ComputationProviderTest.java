@@ -133,7 +133,7 @@ class ComputationProviderTest {
             .compile(entity, computer, dto);
 
         assertThat(compilation).failed();
-        assertThat(compilation).hadErrorContaining("No compute method found for field's name [fullName]");
+        assertThat(compilation).hadErrorContaining("No matching provider method found for computed field 'fullName'");
     }
 
     @Test
@@ -159,7 +159,7 @@ class ComputationProviderTest {
             .compile(entity, dto);
 
         assertThat(compilation).failed();
-        assertThat(compilation).hadErrorContaining("No compute method found for field's name [fullName]");
+        assertThat(compilation).hadErrorContaining("No matching provider method found for computed field 'fullName'");
     }
 
     // ==================== Test Category 2: Wrong Method Name ====================
@@ -204,7 +204,7 @@ class ComputationProviderTest {
             .compile(entity, computer, dto);
 
         assertThat(compilation).failed();
-        assertThat(compilation).hadErrorContaining("No compute method found for field's name [fullName]");
+        assertThat(compilation).hadErrorContaining("No matching provider method found for computed field 'fullName'");
     }
 
     @Test
@@ -247,7 +247,7 @@ class ComputationProviderTest {
             .compile(entity, computer, dto);
 
         assertThat(compilation).failed();
-        assertThat(compilation).hadErrorContaining("No compute method found for field's name [fullName]");
+        assertThat(compilation).hadErrorContaining("No matching provider method found for computed field 'fullName'");
     }
 
     // ==================== Test Category 3: Return Type Mismatch ====================
@@ -293,7 +293,7 @@ class ComputationProviderTest {
 
         assertThat(compilation).failed();
         assertThat(compilation).hadErrorContaining("Mismatch on return type");
-        assertThat(compilation).hadErrorContaining("Required [java.lang.String]");
+        assertThat(compilation).hadErrorContaining(".getFullName has incompatible return type Mismatch on return type. Required: java.lang.String, Found: java.lang.Integer");
     }
 
     @Test
@@ -381,8 +381,7 @@ class ComputationProviderTest {
             .compile(entity, computer, dto);
 
         assertThat(compilation).failed();
-        assertThat(compilation).hadErrorContaining("Mismatch on parameters count");
-        assertThat(compilation).hadErrorContaining("Required [2]");
+        assertThat(compilation).hadErrorContaining(".getFullName has incompatible parameters count. Required: 2, Found: 1");
     }
 
     @Test
@@ -425,8 +424,7 @@ class ComputationProviderTest {
             .compile(entity, computer, dto);
 
         assertThat(compilation).failed();
-        assertThat(compilation).hadErrorContaining("Mismatch on parameters count");
-        assertThat(compilation).hadErrorContaining("Required [2]");
+        assertThat(compilation).hadErrorContaining(".getFullName has incompatible parameters count. Required: 2, Found: 3");
     }
 
     @Test
@@ -469,8 +467,7 @@ class ComputationProviderTest {
             .compile(entity, computer, dto);
 
         assertThat(compilation).failed();
-        assertThat(compilation).hadErrorContaining("Mismatch on parameters count");
-        assertThat(compilation).hadErrorContaining("Required [1]");
+        assertThat(compilation).hadErrorContaining("has incompatible parameters count. Required: 1, Found: 0");
     }
 
     // ==================== Test Category 5: Parameter Type Mismatch ====================
@@ -515,7 +512,7 @@ class ComputationProviderTest {
             .compile(entity, computer, dto);
 
         assertThat(compilation).failed();
-        assertThat(compilation).hadErrorContaining("Type mismatch on parameter [0]");
+        assertThat(compilation).hadErrorContaining(".getFullName has incompatible type on parameter at position 0. Required: java.lang.String, Found: java.lang.Integer");
     }
 
     @Test
@@ -602,7 +599,7 @@ class ComputationProviderTest {
         // This should not succeed even if Integer and int are compatible in JPA context
         // But let's verify the actual behavior
         assertThat(compilation).failed();
-        assertThat(compilation).hadErrorContaining("Required <java.lang.Integer>, got <int>");
+        assertThat(compilation).hadErrorContaining("has incompatible type on parameter at position 0. Required: java.lang.Integer, Found: int");
     }
 
     // ==================== Test Category 6: Multiple Computers Resolution ====================

@@ -17,7 +17,7 @@ import java.util.function.BiFunction;
  * </p>
  *
  * <p>
- * All methods are static and side-effect free, making this class safe to use from any
+ * All methods are static and side effect free, making this class safe to use from any
  * projection execution context.
  * </p>
  *
@@ -59,7 +59,7 @@ public abstract class ProjectionUtils {
      *   <li>Iterate over all registered computation providers for this projection.</li>
      *   <li>For each provider, attempt to locate a compatible method via reflection and invoke it:
      *     <ul>
-     *       <li>If {@code computerResolver} returns {@code null}, the method is invoked as a static method.</li>
+     *       <li>If {@code providerResolver} returns {@code null}, the method is invoked as a static method.</li>
      *       <li>Otherwise, the returned instance is used as the invocation target.</li>
      *     </ul>
      *   </li>
@@ -72,20 +72,20 @@ public abstract class ProjectionUtils {
      * configuration or wiring error.
      * </p>
      *
-     * @param computerResolver a resolver that, given a provider class and bean name, returns a
+     * @param providerResolver a resolver that, given a provider class and bean name, returns a
      *                         concrete provider instance or {@code null} to indicate static access
      * @param projectionClazz  the projection class declaring the computed field
      * @param field            the logical name of the computed field, without {@code get} prefix
      * @param dependencies     ordered dependency values that will be passed as arguments to the
      *                         compute method; the parameter types must match the method signature
-     * @param <T>              the type returned by the {@code computerResolver}
+     * @param <T>              the type returned by the {@code providerResolver}
      * @return the computed field value as returned by the resolved provider method
      * @throws IllegalArgumentException if no projection metadata is found for the class or if the
      *                                  field is not declared as computed
      * @throws IllegalStateException    if no suitable provider method (static or instance) can be found
      * @throws Exception                if the underlying reflective invocation fails
      */
-    public static <T> Object computeField(BiFunction<Class<?>, String, T> computerResolver,
+    public static <T> Object computeField(BiFunction<Class<?>, String, T> providerResolver,
                                           Class<?> projectionClazz,
                                           String field,
                                           Object... dependencies) throws Exception {
@@ -109,7 +109,7 @@ public abstract class ProjectionUtils {
                 continue;
             }
 
-            Object computerInstance = computerResolver.apply(cp.clazz(), cp.bean());
+            Object computerInstance = providerResolver.apply(cp.clazz(), cp.bean());
             if (computerInstance == null) {
                 return method.invoke(null, dependencies);
             } else {

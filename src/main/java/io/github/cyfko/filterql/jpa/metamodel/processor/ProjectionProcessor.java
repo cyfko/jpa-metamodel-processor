@@ -301,10 +301,10 @@ public class ProjectionProcessor {
         );
 
         String computationProviders = computers.stream().map(SimpleComputationProvider::className).collect(Collectors.joining(", "));
-        String msg = String.format("%s: \n- Source: %s \n- Computers: %s \n- Expected computer's method: %s ",
+        String msg = String.format("%s \n- Source: %s \n- Providers: %s \n- Expected computer's method: %s ",
                 errMessage,
                 dtoClass.getQualifiedName(),
-                computers.isEmpty() ? "<error: not provided>" : computationProviders,
+                computers.isEmpty() ? "<error: undefined provider>" : computationProviders,
                 expectedMethodSignature
         );
 
@@ -364,9 +364,9 @@ public class ProjectionProcessor {
                 // Vérifie le type de retour
                 TypeMirror returnType = method.getReturnType();
                 if( !types.isSameType(returnType, fieldType) ){
-                    return String.format("Mismatch on return type for computer method [%s] of provider %s.\nRequired [%s], got [%s]",
-                            methodName,
+                    return String.format("Method %s.%s has incompatible return type Mismatch on return type. Required: %s, Found: %s.",
                             provider.className,
+                            methodName,
                             fieldType.toString(),
                             returnType.toString()
                     );
@@ -375,9 +375,9 @@ public class ProjectionProcessor {
                 // vérifie le nombre d'arguments
                 List<? extends VariableElement> parameters = method.getParameters();
                 if (parameters.size() != field.dependencies().length){
-                    return String.format("Mismatch on parameters count for computer method [%s] of provider %s.\nRequired [%s], got [%s]",
-                            methodName,
+                    return String.format("Method %s.%s has incompatible parameters count. Required: %s, Found: %s.",
                             provider.className,
+                            methodName,
                             field.dependencies().length,
                             parameters.size()
                     );
@@ -388,10 +388,10 @@ public class ProjectionProcessor {
                     String methodParamFqcn = parameters.get(i).asType().toString();
                     String dependencyFqcn = depsToFqcnMapping.get(field.dependencies()[i]);
                     if (!methodParamFqcn.equals(dependencyFqcn)) {
-                        return String.format("Type mismatch on parameter [%d] for computer method (%s) of provider [%s]. Required <%s>, got <%s>",
-                                i,
-                                methodName,
+                        return String.format("Method %s.%s has incompatible type on parameter at position %d. Required: %s, Found: %s.",
                                 provider.className,
+                                methodName,
+                                i,
                                 dependencyFqcn,
                                 methodParamFqcn
                         );
@@ -402,7 +402,7 @@ public class ProjectionProcessor {
             }
         }
 
-        return String.format("No compute method found for field's name [%s]", field.dtoField());
+        return String.format("No matching provider method found for computed field '%s'.", field.dtoField());
     }
 
     /**

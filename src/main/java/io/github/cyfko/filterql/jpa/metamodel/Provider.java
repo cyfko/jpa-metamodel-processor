@@ -5,7 +5,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Declares a provider class responsible for computed fields, virtual fields,
+ * Declares a provider class responsible for computed fields
  * or other projection-related functionality.
  */
 @Retention(RetentionPolicy.SOURCE)
