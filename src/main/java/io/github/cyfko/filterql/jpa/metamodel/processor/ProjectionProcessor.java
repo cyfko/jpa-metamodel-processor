@@ -160,7 +160,7 @@ public class ProjectionProcessor {
         ProcessorUtils.processExplicitFields(dtoClass,
                 "io.github.cyfko.filterql.jpa.metamodel.Projection",
                 params -> {
-                    @SuppressWarnings("unchecked") List<Map<String,Object>> computersList = (List<Map<String,Object>>) params.get("computers");
+                    @SuppressWarnings("unchecked") List<Map<String,Object>> computersList = (List<Map<String,Object>>) params.get("providers");
                     if (computersList == null) return;
 
                     computersList.forEach(com -> computers.add(

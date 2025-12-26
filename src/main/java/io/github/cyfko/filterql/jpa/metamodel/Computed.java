@@ -10,7 +10,7 @@ import java.lang.annotation.Target;
  * entity fields through a computation method.
  *
  * <p>Computed fields are <b>not directly mapped</b> from the entity. Instead, their values
- * are calculated at projection time by invoking a method from a registered {@link Computer}
+ * are calculated at projection time by invoking a method from a registered {@link Provider}
  * class, using entity field values as inputs.</p>
  *
  * <h2>Core Concepts</h2>
@@ -37,7 +37,7 @@ import java.lang.annotation.Target;
  * <h2>Method Resolution</h2>
  * <p>For a field annotated with {@code @Computed}, the system locates a method by:</p>
  * <ol>
- *   <li>Searching all {@link Computer} classes in {@link Projection#computers()} order</li>
+ *   <li>Searching all {@link Provider} classes in {@link Projection#providers()} order</li>
  *   <li>Looking for a method named {@code get[FieldName]}, where {@code FieldName} is the
  *       capitalized field name (e.g., {@code fullName} → {@code getFullName})</li>
  *   <li>Matching method parameters to the types of {@code dependsOn} fields <b>in order</b></li>
@@ -135,7 +135,7 @@ import java.lang.annotation.Target;
  * @since 1.0.0
  * @author Frank KOSSI
  * @see Projection
- * @see Computer
+ * @see Provider
  */
 @Retention(RetentionPolicy.SOURCE)
 @Target(ElementType.FIELD)

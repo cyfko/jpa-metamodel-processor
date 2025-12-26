@@ -26,9 +26,9 @@ import java.lang.annotation.Target;
  * <pre>{@code
  * @Projection(
  *     entity = User.class,
- *     computers = {
- *         @Computer(UserComputations.class),
- *         @Computer(value = DateFormatter.class, bean = "isoDateFormatter")
+ *     providers = {
+ *         @Provider(UserComputations.class),
+ *         @Provider(value = DateFormatter.class, bean = "isoDateFormatter")
  *     }
  * )
  * public class UserDTO {
@@ -64,9 +64,9 @@ import java.lang.annotation.Target;
  * }
  * }</pre>
  *
- * <h2>Computer Resolution Strategy</h2>
+ * <h2>Provider Resolution Strategy</h2>
  * <p>When resolving a computed field, the system searches for a matching method across
- * all registered computers in declaration order:</p>
+ * all registered providers in declaration order:</p>
  * <ol>
  *   <li>Method name must follow the convention: {@code get[FieldName](...)}</li>
  *   <li>Method parameters must match the types of the {@code dependsOn} fields</li>
@@ -77,7 +77,7 @@ import java.lang.annotation.Target;
  *
  * @since 1.0.0
  * @author Frank KOSSI
- * @see Computer
+ * @see Provider
  * @see Computed
  * @see Projected
  */
@@ -95,20 +95,27 @@ public @interface Projection {
     Class<?> entity();
 
     /**
-     * Array of computer declarations that provide computation logic for computed fields.
+     * Array of provider classes that supply computation logic or other extension points for this projection.
      *
-     * <p>Computers are evaluated in declaration order using a first-match-wins strategy.
-     * This allows organizing computers by specificity or logical grouping.</p>
+     * <p>Providers are evaluated in declaration order using a first-match-wins strategy.</p>
+     *
+     * <p><b>Provider Types:</b></p>
+     * <ul>
+     *   <li><b>Computation Providers:</b> Classes with methods matching {@code get[FieldName](...)}
+     *       for {@link Computed} fields</li>
+     *   <li><b>Virtual Field Providers:</b> Classes with {@code @ExposedAs} annotated methods
+     *       returning {@code PredicateResolverMapping} for filtering</li>
+     * </ul>
      *
      * <p><b>Example:</b></p>
      * <pre>{@code
-     * computers = {
-     *     @Computer(UserComputations.class),           // General user computations
-     *     @Computer(value = DateFormatter.class, bean = "isoFormatter")  // Specialized date formatting
+     * providers = {
+     *     @Provider(UserComputations.class),      // For @Computed fields
+     *     @Provider(UserVirtualFields.class)      // For @ExposedAs virtual fields
      * }
      * }</pre>
      *
-     * @return the array of {@link Computer} declarations
+     * @return the array of {@link Provider} declarations
      */
-    Computer[] computers() default {};
+    Provider[] providers() default {};
 }

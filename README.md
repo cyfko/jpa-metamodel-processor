@@ -76,8 +76,8 @@ Use the `@Projection`, `@Projected`, and `@Computed` annotations to define your 
 ```java
 @Projection(
     entity = User.class,
-    computers = {
-        @Computer(value = UserComputations.class)
+    providers = {
+        @Provider(value = UserComputations.class)
     }
 )
 public class UserDTO {
@@ -330,8 +330,8 @@ You can use Spring beans for computation providers:
 ```java
 @Projection(
     entity = User.class,
-    computers = {
-        @Computer(value = DateFormatter.class, bean = "isoDateFormatter")
+    providers = {
+        @Provider(value = DateFormatter.class, bean = "isoDateFormatter")
     }
 )
 public class UserDTO {
@@ -373,7 +373,7 @@ Class-level annotation that declares a DTO projection.
 
 **Parameters:**
 - `entity`: The source JPA entity class (required)
-- `computers`: Array of computation providers (optional)
+- `providers`: Array of computation providers (optional)
 
 ### `@Projected`
 
@@ -389,7 +389,7 @@ Field-level annotation to declare a computed field.
 **Parameters:**
 - `dependsOn`: Array of paths to entity fields required for computation
 
-### `@Computer`
+### `@Provider`
 
 Annotation to declare a computation provider.
 

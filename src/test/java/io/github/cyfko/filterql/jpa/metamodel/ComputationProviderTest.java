@@ -119,7 +119,7 @@ class ComputationProviderTest {
             
             @Projection(
                 entity = User.class,
-                computers = {@Computer(UserComputations.class)}
+                providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
                 @Computed(dependsOn = {"firstName", "lastName"})
@@ -190,7 +190,7 @@ class ComputationProviderTest {
             
             @Projection(
                 entity = User.class,
-                computers = {@Computer(UserComputations.class)}
+                providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
                 @Computed(dependsOn = {"firstName", "lastName"})
@@ -233,7 +233,7 @@ class ComputationProviderTest {
             
             @Projection(
                 entity = User.class,
-                computers = {@Computer(UserComputations.class)}
+                providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
                 @Computed(dependsOn = {"firstName", "lastName"})
@@ -278,7 +278,7 @@ class ComputationProviderTest {
             
             @Projection(
                 entity = User.class,
-                computers = {@Computer(UserComputations.class)}
+                providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
                 @Computed(dependsOn = {"firstName", "lastName"})
@@ -322,7 +322,7 @@ class ComputationProviderTest {
             
             @Projection(
                 entity = User.class,
-                computers = {@Computer(UserComputations.class)}
+                providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
                 @Computed(dependsOn = {"birthDate"})
@@ -367,7 +367,7 @@ class ComputationProviderTest {
             
             @Projection(
                 entity = User.class,
-                computers = {@Computer(UserComputations.class)}
+                providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
                 @Computed(dependsOn = {"firstName", "lastName"})
@@ -411,7 +411,7 @@ class ComputationProviderTest {
             
             @Projection(
                 entity = User.class,
-                computers = {@Computer(UserComputations.class)}
+                providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
                 @Computed(dependsOn = {"firstName", "lastName"})
@@ -455,7 +455,7 @@ class ComputationProviderTest {
             
             @Projection(
                 entity = User.class,
-                computers = {@Computer(UserComputations.class)}
+                providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
                 @Computed(dependsOn = {"birthDate"})
@@ -501,7 +501,7 @@ class ComputationProviderTest {
             
             @Projection(
                 entity = User.class,
-                computers = {@Computer(UserComputations.class)}
+                providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
                 @Computed(dependsOn = {"firstName", "lastName"})
@@ -544,7 +544,7 @@ class ComputationProviderTest {
             
             @Projection(
                 entity = User.class,
-                computers = {@Computer(UserComputations.class)}
+                providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
                 @Computed(dependsOn = {"firstName", "lastName"})
@@ -586,7 +586,7 @@ class ComputationProviderTest {
             
             @Projection(
                 entity = User.class,
-                computers = {@Computer(UserComputations.class)}
+                providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
                 @Computed(dependsOn = {"age"})
@@ -645,9 +645,9 @@ class ComputationProviderTest {
             
             @Projection(
                 entity = User.class,
-                computers = {
-                    @Computer(UserComputations1.class),
-                    @Computer(UserComputations2.class)
+                providers = {
+                    @Provider(UserComputations1.class),
+                    @Provider(UserComputations2.class)
                 }
             )
             public class UserDTO {
@@ -705,9 +705,9 @@ class ComputationProviderTest {
             
             @Projection(
                 entity = User.class,
-                computers = {
-                    @Computer(UserComputations1.class),
-                    @Computer(UserComputations2.class)
+                providers = {
+                    @Provider(UserComputations1.class),
+                    @Provider(UserComputations2.class)
                 }
             )
             public class UserDTO {
@@ -752,7 +752,7 @@ class ComputationProviderTest {
             
             @Projection(
                 entity = User.class,
-                computers = {@Computer(UserComputations.class)}
+                providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
                 @Computed(dependsOn = {"firstName", "lastName"})
@@ -794,7 +794,7 @@ class ComputationProviderTest {
             
             @Projection(
                 entity = User.class,
-                computers = {@Computer(value = UserComputations.class, bean = "userComputations")}
+                providers = {@Provider(value = UserComputations.class, bean = "userComputations")}
             )
             public class UserDTO {
                 @Computed(dependsOn = {"firstName", "lastName"})
@@ -836,7 +836,7 @@ class ComputationProviderTest {
             
             @Projection(
                 entity = User.class,
-                computers = {@Computer(UserComputations.class)}
+                providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
                 @Computed(dependsOn = {"birthDate"})
@@ -879,7 +879,7 @@ class ComputationProviderTest {
             
             @Projection(
                 entity = Product.class,
-                computers = {@Computer(ProductComputations.class)}
+                providers = {@Provider(ProductComputations.class)}
             )
             public class ProductDTO {
                 @Computed(dependsOn = {"price", "quantity"})
@@ -927,7 +927,7 @@ class ComputationProviderTest {
             
             @Projection(
                 entity = User.class,
-                computers = {@Computer(UserComputations.class)}
+                providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
                 @Computed(dependsOn = {"firstName", "lastName"})
@@ -985,9 +985,9 @@ class ComputationProviderTest {
             
             @Projection(
                 entity = User.class,
-                computers = {
-                    @Computer(NameComputations.class),
-                    @Computer(AgeComputations.class)
+                providers = {
+                    @Provider(NameComputations.class),
+                    @Provider(AgeComputations.class)
                 }
             )
             public class UserDTO {
@@ -1034,7 +1034,7 @@ class ComputationProviderTest {
             
             @Projection(
                 entity = User.class,
-                computers = {@Computer(UserComputations.class)}
+                providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
                 @Computed(dependsOn = {"birthDate"})
@@ -1077,7 +1077,7 @@ class ComputationProviderTest {
             
             @Projection(
                 entity = Product.class,
-                computers = {@Computer(ProductComputations.class)}
+                providers = {@Provider(ProductComputations.class)}
             )
             public class ProductDTO {
                 @Computed(dependsOn = {"price"})
@@ -1120,7 +1120,7 @@ class ComputationProviderTest {
             
             @Projection(
                 entity = Order.class,
-                computers = {@Computer(OrderComputations.class)}
+                providers = {@Provider(OrderComputations.class)}
             )
             public class OrderDTO {
                 @Computed(dependsOn = {"createdAt"})
@@ -1178,7 +1178,7 @@ class ComputationProviderTest {
             
             @Projection(
                 entity = User.class,
-                computers = {@Computer(NonExistentComputer.class)}
+                providers = {@Provider(NonExistentComputer.class)}
             )
             public class UserDTO {
                 @Computed(dependsOn = {"firstName", "lastName"})
@@ -1222,7 +1222,7 @@ class ComputationProviderTest {
             
             @Projection(
                 entity = User.class,
-                computers = {@Computer(UserComputations.class)}
+                providers = {@Provider(UserComputations.class)}
             )
             public class UserDTO {
                 @Computed(dependsOn = {"firstName", "lastName"})
@@ -1276,7 +1276,7 @@ class ComputationProviderTest {
             
             @Projection(
                 entity = User.class,
-                computers = {@Computer(value = UserComputations.class, bean = "userComputationsBean")}
+                providers = {@Provider(value = UserComputations.class, bean = "userComputationsBean")}
             )
             public class UserDTO {
                 @Computed(dependsOn = {"firstName", "lastName"})
