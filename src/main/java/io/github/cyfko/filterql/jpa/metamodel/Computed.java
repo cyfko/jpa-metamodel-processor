@@ -42,7 +42,6 @@ import java.util.function.BiFunction;
  *   <li>Looking for a method named {@code get[FieldName]}, where {@code FieldName} is the
  *       capitalized field name (e.g., {@code fullName} → {@code getFullName})</li>
  *   <li>Matching method parameters to the types of {@code dependsOn} fields <b>in order</b></li>
- *   <li>Accepting additional parameters for injected services (if using bean-based provider)</li>
  * </ol>
  *
  * <h3>Provider Method Requirements</h3>
