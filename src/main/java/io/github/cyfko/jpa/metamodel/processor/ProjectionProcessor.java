@@ -1,13 +1,10 @@
 package io.github.cyfko.jpa.metamodel.processor;
 
 import io.github.cyfko.jpa.metamodel.Projection;
-import io.github.cyfko.jpa.metamodel.model.*;
-import io.github.cyfko.jpa.metamodel.model.projection.*;
 import io.github.cyfko.jpa.metamodel.model.CollectionKind;
 import io.github.cyfko.jpa.metamodel.model.CollectionType;
 import io.github.cyfko.jpa.metamodel.model.projection.ComputedField;
 import io.github.cyfko.jpa.metamodel.model.projection.DirectMapping;
-import io.github.cyfko.jpa.metamodel.utils.ProjectionUtils;
 
 import javax.annotation.processing.*;
 import javax.lang.model.element.*;
@@ -298,7 +295,7 @@ public class ProjectionProcessor {
 
         String expectedMethodSignature = String.format("public %s get%s(%s);",
                 enclosedElement.asType().toString(),
-                ProjectionUtils.capitalize(field.dtoField()),
+                capitalize(field.dtoField()),
                 String.join(", ", Arrays.stream(field.dependencies())
                         .map(d -> depsToFqcnMapping.get(d) + " " + getLastSegment(d,"\\."))
                         .toList())
@@ -353,7 +350,7 @@ public class ProjectionProcessor {
         Elements elements = processingEnv.getElementUtils();
         Types types = processingEnv.getTypeUtils();
 
-        final String methodName = "get" + ProjectionUtils.capitalize(field.dtoField());
+        final String methodName = "get" + capitalize(field.dtoField());
 
         for (SimpleComputationProvider provider : computers) {
             TypeElement providerElement = elements.getTypeElement(provider.className());
@@ -739,6 +736,24 @@ public class ProjectionProcessor {
                 "                    new ComputationProvider(%s.class, \"%s\")",
                 c.className(), c.bean()
         );
+    }
+
+    /**
+     * Capitalizes the first character of the given string, leaving the remainder unchanged.
+     * <p>
+     * This method is null-safe and returns the input as-is when the string is {@code null}
+     * or empty. It is typically used to build JavaBean-style accessor names from field
+     * identifiers, for example when resolving {@code getXxx} methods via reflection.
+     * </p>
+     *
+     * @param str the input string, possibly {@code null} or empty
+     * @return the capitalized string, or the original value if {@code null} or empty
+     */
+    public static String capitalize(String str) {
+        if (str == null || str.isEmpty()) {
+            return str;
+        }
+        return str.substring(0, 1).toUpperCase() + str.substring(1);
     }
 
     /**

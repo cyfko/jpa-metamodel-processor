@@ -1,12 +1,9 @@
 package io.github.cyfko.jpa.metamodel;
 
-import io.github.cyfko.jpa.metamodel.utils.ProjectionUtils;
-
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import java.util.function.BiFunction;
 
 /**
  * Marks a DTO field as a computed field whose value is derived from one or more
@@ -62,9 +59,10 @@ import java.util.function.BiFunction;
  * <h3>Runtime Resolution Strategy</h3>
  * <p>At runtime, the resolution process works as follows:</p>
  * <ol>
- *   <li>A {@code providerResolver} (example: {@link ProjectionUtils#computeField(BiFunction, Class, String, Object...)})
- *   is invoked with the provider class and bean hint</li>
- *   <li>If the resolver returns {@code null}: the method is invoked <b>statically</b></li>
+ *   <li>A mechanism to obtain an instance of {@link Provider} may be implemented given a provider info, typically a
+ *   method is invoked with the provider class and bean hint to obtain the desired instance of the provider</li>
+ *   <li>If the returned value is {@code null}: the resolution of the targeted method is considered
+ *   <b>statically resolved</b> from the {@link Provider#value()} </li>
  *   <li>If the resolver returns an instance: the method is invoked on that <b>instance</b></li>
  * </ol>
  *
