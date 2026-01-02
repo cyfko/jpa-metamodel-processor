@@ -35,10 +35,10 @@ import java.lang.annotation.Target;
  *     @Projected(from = "email")
  *     private String emailAddress;
  *
- *     @Projected
+ *     // implicitly considered as @Projected(from = "firstName")
  *     private String firstName;
  *
- *     @Projected
+ *     // implicitly considered as @Projected(from = "lastName")
  *     private String lastName;
  *
  *     @Computed(dependsOn = {"firstName", "lastName"})
