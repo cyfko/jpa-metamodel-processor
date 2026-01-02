@@ -8,10 +8,8 @@ import java.math.BigDecimal;
 @Projection(entity = Order.class)
 public class OrderDTO {
 
-    @Projected
     private long id;
 
-    @Projected
     private String orderNumber;
 
     @Projected(from = "totalAmount")
