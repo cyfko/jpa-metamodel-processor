@@ -40,7 +40,7 @@ The annotation processor will be automatically detected and executed during comp
 
 ### 1. Define Your JPA Entities
 
-The processor automatically analyzes all classes annotated with `@Entity` and `@Embeddable`:
+The processor analyzes only the `@Entity` and `@Embeddable` classes referenced by the `entity` attribute of your `@Projection` annotations (and their related embeddables):
 
 ```java
 @Entity
@@ -110,6 +110,10 @@ public class UserDTO {
 }
 ```
 
+**Note:**
+- Only entities referenced in the `entity` attribute of `@Projection` are scanned for projection purposes.
+- All fields in a class annotated with `@Projection` are implicitly considered as if annotated with `@Projected`, unless explicitly annotated otherwise.
+
 ### 3. Define Computation Providers
 
 Create classes containing computation methods for your `@Computed` fields:
@@ -175,135 +179,10 @@ ProjectionMetadata projectionMeta = ProjectionRegistry.getMetadataFor(UserDTO.cl
 
 ## 💡 Use Cases
 
-### Use Case 1: REST API with Projections
-
-In a REST API, you can use the registries to dynamically build JPA queries based on fields requested by the client:
-
-```java
-@RestController
-@RequestMapping("/api/users")
-public class UserController {
-    
-    @GetMapping
-    public List<UserDTO> getUsers(@RequestParam(required = false) String fields) {
-        // Determine required entity fields for the projection
-        List<String> requiredFields = fields != null 
-            ? parseFields(fields, UserDTO.class)
-            : ProjectionRegistry.getRequiredEntityFields(UserDTO.class);
-        
-        // Build an optimized JPA query
-        CriteriaBuilder cb = em.getCriteriaBuilder();
-        CriteriaQuery<User> query = cb.createQuery(User.class);
-        Root<User> root = query.from(User.class);
-        
-        // Select only necessary fields
-        // ... query building logic ...
-        
-        return users.stream()
-            .map(this::mapToDTO)
-            .collect(Collectors.toList());
-    }
-    
-    private List<String> parseFields(String fields, Class<?> dtoClass) {
-        return Arrays.stream(fields.split(","))
-            .map(field -> ProjectionRegistry.toEntityPath(field.trim(), dtoClass, true))
-            .collect(Collectors.toList());
-    }
-}
-```
-
-### Use Case 2: Filter Schema Validation
-
-For a dynamic filtering system, you can validate that fields used in filters exist in entities:
-
-```java
-public class FilterValidator {
-    
-    public void validateFilter(String entityName, String fieldPath) {
-        Class<?> entityClass = resolveEntityClass(entityName);
-        
-        if (!PersistenceRegistry.isEntityRegistered(entityClass)) {
-            throw new IllegalArgumentException("Entity not registered: " + entityName);
-        }
-        
-        // Validate the field path
-        String[] segments = fieldPath.split("\\.");
-        Map<String, PersistenceMetadata> metadata = PersistenceRegistry.getMetadataFor(entityClass);
-        
-        for (String segment : segments) {
-            PersistenceMetadata fieldMeta = metadata.get(segment);
-            if (fieldMeta == null) {
-                throw new IllegalArgumentException("Invalid field: " + segment);
-            }
-            // Navigate to next type if necessary...
-        }
-    }
-}
-```
-
-### Use Case 3: API Documentation Generation
-
-Automatically generate OpenAPI/Swagger documentation from metadata:
-
-```java
-public class ApiDocumentationGenerator {
-    
-    public OpenAPISchema generateSchema(Class<?> dtoClass) {
-        ProjectionMetadata metadata = ProjectionRegistry.getMetadataFor(dtoClass);
-        
-        OpenAPISchema schema = new OpenAPISchema();
-        
-        // Add direct fields
-        for (DirectMapping mapping : metadata.directMappings()) {
-            schema.addProperty(mapping.dtoField(), resolveType(mapping.dtoFieldType()));
-        }
-        
-        // Add computed fields
-        for (ComputedField computed : metadata.computedFields()) {
-            schema.addProperty(computed.dtoField(), resolveComputedType(computed));
-        }
-        
-        return schema;
-    }
-}
-```
-
-### Use Case 4: Query Optimization with Field Selection
-
-Build JPA queries that only load fields necessary for a given projection:
-
-```java
-public class OptimizedQueryBuilder {
-    
-    public <T> TypedQuery<T> buildProjectionQuery(Class<?> dtoClass, Class<T> entityClass) {
-        List<String> requiredFields = ProjectionRegistry.getRequiredEntityFields(dtoClass);
-        
-        CriteriaBuilder cb = em.getCriteriaBuilder();
-        CriteriaQuery<Object[]> query = cb.createQuery(Object[].class);
-        Root<T> root = query.from(entityClass);
-        
-        // Build selection based on required fields
-        List<Selection<?>> selections = requiredFields.stream()
-            .map(field -> buildSelection(root, field))
-            .collect(Collectors.toList());
-        
-        query.select(cb.array(selections.toArray(new Selection[0])));
-        
-        return (TypedQuery<T>) em.createQuery(query);
-    }
-    
-    private Selection<?> buildSelection(Root<?> root, String fieldPath) {
-        String[] segments = fieldPath.split("\\.");
-        Path<?> path = root;
-        
-        for (String segment : segments) {
-            path = path.get(segment);
-        }
-        
-        return path;
-    }
-}
-```
+- **REST API with Projections:** Dynamically build JPA queries based on fields requested by the client.
+- **Filter Schema Validation:** Validate that fields used in filters exist in entities.
+- **API Documentation Generation:** Automatically generate OpenAPI/Swagger documentation from metadata.
+- **Query Optimization:** Build JPA queries that only load fields necessary for a given projection.
 
 ## 🔧 Advanced Features
 
@@ -397,10 +276,10 @@ Annotation to declare a computation provider.
 - `value`: The provider class (required)
 - `bean`: The bean name for dependency injection (optional)
 
+
 ## ⚠️ Limitations
 
 - Entity classes must be public
-- Test classes are automatically ignored
 - `@Transient` fields are excluded from analysis
 - Computation providers must follow the `get[FieldName]` naming convention
 
@@ -416,8 +295,8 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 **Frank KOSSI**
 
-- Email: frank.kossi@kunrin.com
-- Organization: [Kunrin SA](https://www.kunrin.com)
+- Email: frank.kossi@kunrin.com, frank.kossi@sprint-pay.com
+- Organization: [Kunrin SA](https://www.kunrin.com), [Sprint-Pay SA](https://www.sprint-pay.com)
 
 ## 🔗 Links
 

@@ -102,14 +102,14 @@ public class EntityProcessor {
      * Processes all {@code @Entity}-annotated classes discovered in the current round and
      * registers their persistent fields in the internal registry.
      * <p>
-     * For each entity, this method:
-     * </p>
-     * <ul>
-     *   <li>Skips non-public and test classes.</li>
-     *   <li>Traverses the class hierarchy to collect persistent fields, excluding {@code @Transient} ones.</li>
-     *   <li>Analyzes each field to determine its persistence kind (scalar, id, embedded, collection).</li>
-     *   <li>Discovers and processes referenced embeddables recursively.</li>
-     * </ul>
+    * For each entity, this method:
+    * </p>
+    * <ul>
+    *   <li>Skips non-public classes and those declared inside a non-public enclosing class.</li>
+    *   <li>Traverses the class hierarchy to collect persistent fields, excluding {@code @Transient} ones.</li>
+    *   <li>Analyzes each field to determine its persistence kind (scalar, id, embedded, collection).</li>
+    *   <li>Discovers and processes referenced embeddables recursively.</li>
+    * </ul>
      *
      */
     public void processEntities() {
@@ -400,7 +400,6 @@ public class EntityProcessor {
      * <ul>
      *   <li>The class itself is not {@code public}.</li>
      *   <li>It is declared inside a non-public enclosing class.</li>
-     *   <li>Its name or package suggests a test class (e.g. suffix {@code Test}, package containing {@code .test}).</li>
      * </ul>
      *
      * @param entityType the entity type to inspect
