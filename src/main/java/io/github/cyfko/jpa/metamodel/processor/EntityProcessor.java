@@ -38,99 +38,19 @@ public class EntityProcessor {
     private final Map<String, Map<String, SimplePersistenceMetadata>> collectedRegistry = new LinkedHashMap<>();
     private final Map<String, Map<String, SimplePersistenceMetadata>> collectedEmbeddable = new LinkedHashMap<>();
 
+    // Only process entities referenced by @Projection
+    private final List<String> referencedEntities = new ArrayList<>();
+
     public EntityProcessor(ProcessingEnvironment processingEnv) {
         this.processingEnv = processingEnv;
     }
 
     /**
-     * Processes all {@code @Entity}-annotated classes discovered in the current round and
-     * registers their persistent fields in the internal registry.
-     * <p>
-     * For each entity, this method:
-     * </p>
-     * <ul>
-     *   <li>Skips non-public and test classes.</li>
-     *   <li>Traverses the class hierarchy to collect persistent fields, excluding {@code @Transient} ones.</li>
-     *   <li>Analyzes each field to determine its persistence kind (scalar, id, embedded, collection).</li>
-     *   <li>Discovers and processes referenced embeddables recursively.</li>
-     * </ul>
-     *
-     * @param roundEnv the current annotation processing round environment
+     * Sets the set of entity class names (FQCN) that should be processed.
+     * If null, all entities are processed (legacy behavior).
      */
-    public void processEntities(RoundEnvironment roundEnv) {
-        Messager messager = processingEnv.getMessager();
-        messager.printMessage(Diagnostic.Kind.NOTE, "📦 Phase 1: Processing JPA entities...");
-
-        // Process @Entity classes
-        for (Element element : roundEnv.getElementsAnnotatedWith(Entity.class)) {
-            if (element.getKind() != ElementKind.CLASS) continue;
-            TypeElement entityType = (TypeElement) element;
-
-            if (shouldSkipEntity(entityType, messager)) {
-                continue;
-            }
-
-            messager.printMessage(Diagnostic.Kind.NOTE,
-                    "🔍 Analysing entity: " + entityType.getQualifiedName());
-
-            Map<String, SimplePersistenceMetadata> fields = extractFields(entityType, entityType, messager);
-            collectedRegistry.put(entityType.getQualifiedName().toString(), fields);
-
-            messager.printMessage(Diagnostic.Kind.NOTE,
-                    "✅ Extracted " + fields.size() + " fields from " + entityType.getSimpleName());
-
-            // Process referenced embeddables
-            processReferencedEmbeddables(fields, messager);
-        }
-    }
-
-    /**
-     * Processes embeddable types referenced by the given set of entity fields.
-     * <p>
-     * This method is recursive and handles nested embeddables by:
-     * </p>
-     * <ul>
-     *   <li>Resolving non-basic {@code relatedType}s.</li>
-     *   <li>Detecting {@code @Embeddable} classes.</li>
-     *   <li>Extracting their fields and registering them into the embeddable registry.</li>
-     *   <li>Following further embeddable references transitively.</li>
-     * </ul>
-     *
-     * @param fields   the already extracted fields for an entity or embeddable
-     * @param messager the messager used for diagnostic output
-     */
-    private void processReferencedEmbeddables(Map<String, SimplePersistenceMetadata> fields, Messager messager) {
-        for (Map.Entry<String, SimplePersistenceMetadata> entry : fields.entrySet()) {
-            SimplePersistenceMetadata metadata = entry.getValue();
-
-            // Check if field has a related type that might be an embeddable
-            if (! isJpaBasicType(metadata.relatedType())) {
-                String relatedType = metadata.relatedType();
-
-                // Skip if already processed
-                if (collectedEmbeddable.containsKey(relatedType)) {
-                    continue;
-                }
-
-                // Try to load the type and check if it's an embeddable
-                TypeElement typeElement = processingEnv.getElementUtils().getTypeElement(relatedType);
-
-                if (typeElement != null && AnnotationProcessorUtils.hasAnnotation(typeElement, "jakarta.persistence.Embeddable")) {
-                    messager.printMessage(Diagnostic.Kind.NOTE,
-                            "📎 Analysing referenced embeddable: " + relatedType);
-
-                    // Extract fields from embeddable
-                    Map<String, SimplePersistenceMetadata> embeddableFields = extractFields(typeElement, typeElement, messager);
-                    collectedEmbeddable.put(relatedType, embeddableFields);
-
-                    messager.printMessage(Diagnostic.Kind.NOTE,
-                            "✅ Extracted " + embeddableFields.size() + " fields from embeddable " + typeElement.getSimpleName());
-
-                    // Recursive: process embeddables referenced by this embeddable
-                    processReferencedEmbeddables(embeddableFields, messager);
-                }
-            }
-        }
+    public void setReferencedEntities(Set<String> referencedEntities) {
+        this.referencedEntities.addAll(referencedEntities);
     }
 
     /**
@@ -177,6 +97,154 @@ public class EntityProcessor {
      */
     public boolean hasEmbeddableMetadata(String embeddableClassName) {
         return collectedEmbeddable.containsKey(embeddableClassName);
+    }
+
+    /**
+     * Processes all {@code @Entity}-annotated classes discovered in the current round and
+     * registers their persistent fields in the internal registry.
+     * <p>
+     * For each entity, this method:
+     * </p>
+     * <ul>
+     *   <li>Skips non-public and test classes.</li>
+     *   <li>Traverses the class hierarchy to collect persistent fields, excluding {@code @Transient} ones.</li>
+     *   <li>Analyzes each field to determine its persistence kind (scalar, id, embedded, collection).</li>
+     *   <li>Discovers and processes referenced embeddables recursively.</li>
+     * </ul>
+     *
+     */
+    public void processEntities() {
+        Messager messager = processingEnv.getMessager();
+
+        // Process @Entity classes
+        for (var i = 0; i < referencedEntities.size(); i++) {
+            String fqcnEntity = referencedEntities.get(i);
+            TypeElement entityType = processingEnv.getElementUtils().getTypeElement(fqcnEntity);
+
+            if (entityType == null) continue;
+            if (collectedRegistry.containsKey(fqcnEntity)) continue;
+            if (shouldSkipEntity(entityType, messager)) continue;
+
+            messager.printMessage(Diagnostic.Kind.NOTE, "🔍 Analysing entity: " + entityType.getQualifiedName());
+
+            Map<String, SimplePersistenceMetadata> fields = extractFields(entityType, entityType, messager);
+            collectedRegistry.put(fqcnEntity, fields);
+
+            messager.printMessage(Diagnostic.Kind.NOTE, "✅ Extracted " + fields.size() + " fields from " + entityType.getSimpleName());
+
+            // Process referenced embeddables
+            processReferencedEmbeddables(fields, messager);
+        }
+    }
+
+    /**
+     * Extracts persistent fields for the given type and its superclasses, creating
+     * {@link SimplePersistenceMetadata} entries for each field.
+     * <p>
+     * This method:
+     * </p>
+     * <ul>
+     *   <li>Skips {@code @Transient} fields.</li>
+     *   <li>Handles {@code @Id}, {@code @EmbeddedId}, {@code @Embedded}, collections and scalar types.</li>
+     *   <li>Resolves related types for associations and element collections.</li>
+     *   <li>Checks for missing or inconsistent identifier declarations on entity roots.</li>
+     * </ul>
+     *
+     * @param type       the type whose fields should be inspected (including hierarchy)
+     * @param rootEntity the root entity type used for {@code @Id} consistency checks
+     * @param messager   the messager used for warnings and errors
+     * @return an ordered mapping from field name to {@link SimplePersistenceMetadata}
+     */
+    private Map<String, SimplePersistenceMetadata> extractFields(TypeElement type, TypeElement rootEntity, Messager messager) {
+        Map<String, SimplePersistenceMetadata> result = new LinkedHashMap<>();
+        Types types = processingEnv.getTypeUtils();
+
+        while (type != null && !type.getQualifiedName().toString().equals("java.lang.Object")) {
+            for (Element enclosed : type.getEnclosedElements()) {
+                if (enclosed.getKind() != ElementKind.FIELD) continue;
+
+                VariableElement field = (VariableElement) enclosed;
+                String name = field.getSimpleName().toString();
+
+                if (result.containsKey(name)) continue;
+                if (AnnotationProcessorUtils.hasAnnotation(field, "jakarta.persistence.Transient")) continue;
+
+                SimplePersistenceMetadata metadata = analyzeField(field, messager);
+                result.put(name, metadata);
+
+                TypeElement relatedType = processingEnv.getElementUtils().getTypeElement(metadata.relatedType);
+                if (relatedType != null && AnnotationProcessorUtils.hasAnnotation(relatedType, "jakarta.persistence.Entity")) {
+                    referencedEntities.add(relatedType.toString());
+                };
+            }
+
+            TypeMirror superType = type.getSuperclass();
+            if (superType.getKind() == TypeKind.NONE) break;
+            type = (TypeElement) types.asElement(superType);
+        }
+
+        // Only warn about missing @Id for actual entities, not embeddables
+        if (AnnotationProcessorUtils.hasAnnotation(rootEntity, "jakarta.persistence.Entity")) {
+            long idCount = result.values().stream().filter(SimplePersistenceMetadata::isId).count();
+            if (idCount == 0) {
+                messager.printMessage(Diagnostic.Kind.WARNING,
+                        "⚠️ No @Id field found in " + rootEntity.getQualifiedName(), rootEntity);
+            } else if (idCount > 1 && !AnnotationProcessorUtils.hasAnnotation(rootEntity, "jakarta.persistence.IdClass")) {
+                messager.printMessage(Diagnostic.Kind.WARNING,
+                        "⚠️ " + rootEntity.getQualifiedName() + " is not annotated with @jakarta.persistence.IdClass but multiple @Id fields detected", rootEntity);
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Processes embeddable types referenced by the given set of entity fields.
+     * <p>
+     * This method is recursive and handles nested embeddables by:
+     * </p>
+     * <ul>
+     *   <li>Resolving non-basic {@code relatedType}s.</li>
+     *   <li>Detecting {@code @Embeddable} classes.</li>
+     *   <li>Extracting their fields and registering them into the embeddable registry.</li>
+     *   <li>Following further embeddable references transitively.</li>
+     * </ul>
+     *
+     * @param fields   the already extracted fields for an entity or embeddable
+     * @param messager the messager used for diagnostic output
+     */
+    private void processReferencedEmbeddables(Map<String, SimplePersistenceMetadata> fields, Messager messager) {
+        for (Map.Entry<String, SimplePersistenceMetadata> entry : fields.entrySet()) {
+            SimplePersistenceMetadata metadata = entry.getValue();
+
+            // Check if field has a related type that might be an embeddable
+            if (! BASIC_JPA_TYPES.contains(metadata.relatedType())) {
+                String relatedType = metadata.relatedType();
+
+                // Skip if already processed
+                if (collectedEmbeddable.containsKey(relatedType)) {
+                    continue;
+                }
+
+                // Try to load the type and check if it's an embeddable
+                TypeElement typeElement = processingEnv.getElementUtils().getTypeElement(relatedType);
+
+                if (typeElement != null && AnnotationProcessorUtils.hasAnnotation(typeElement, "jakarta.persistence.Embeddable")) {
+                    messager.printMessage(Diagnostic.Kind.NOTE,
+                            "📎 Analysing referenced embeddable: " + relatedType);
+
+                    // Extract fields from embeddable
+                    Map<String, SimplePersistenceMetadata> embeddableFields = extractFields(typeElement, typeElement, messager);
+                    collectedEmbeddable.put(relatedType, embeddableFields);
+
+                    messager.printMessage(Diagnostic.Kind.NOTE,
+                            "✅ Extracted " + embeddableFields.size() + " fields from embeddable " + typeElement.getSimpleName());
+
+                    // Recursive: process embeddables referenced by this embeddable
+                    processReferencedEmbeddables(embeddableFields, messager);
+                }
+            }
+        }
     }
 
     /**
@@ -396,60 +464,6 @@ public class EntityProcessor {
     }
 
     /**
-     * Extracts persistent fields for the given type and its superclasses, creating
-     * {@link SimplePersistenceMetadata} entries for each field.
-     * <p>
-     * This method:
-     * </p>
-     * <ul>
-     *   <li>Skips {@code @Transient} fields.</li>
-     *   <li>Handles {@code @Id}, {@code @EmbeddedId}, {@code @Embedded}, collections and scalar types.</li>
-     *   <li>Resolves related types for associations and element collections.</li>
-     *   <li>Checks for missing or inconsistent identifier declarations on entity roots.</li>
-     * </ul>
-     *
-     * @param type       the type whose fields should be inspected (including hierarchy)
-     * @param rootEntity the root entity type used for {@code @Id} consistency checks
-     * @param messager   the messager used for warnings and errors
-     * @return an ordered mapping from field name to {@link SimplePersistenceMetadata}
-     */
-    private Map<String, SimplePersistenceMetadata> extractFields(TypeElement type, TypeElement rootEntity, Messager messager) {
-        Map<String, SimplePersistenceMetadata> result = new LinkedHashMap<>();
-        Types types = processingEnv.getTypeUtils();
-
-        while (type != null && !type.getQualifiedName().toString().equals("java.lang.Object")) {
-            for (Element enclosed : type.getEnclosedElements()) {
-                if (enclosed.getKind() != ElementKind.FIELD) continue;
-                VariableElement field = (VariableElement) enclosed;
-                String name = field.getSimpleName().toString();
-                if (result.containsKey(name)) continue;
-                if (AnnotationProcessorUtils.hasAnnotation(field, "jakarta.persistence.Transient")) continue;
-
-                SimplePersistenceMetadata metadata = analyzeField(field, messager);
-                result.put(name, metadata);
-            }
-
-            TypeMirror superType = type.getSuperclass();
-            if (superType.getKind() == TypeKind.NONE) break;
-            type = (TypeElement) types.asElement(superType);
-        }
-
-        // Only warn about missing @Id for actual entities, not embeddables
-        if (AnnotationProcessorUtils.hasAnnotation(rootEntity, "jakarta.persistence.Entity")) {
-            long idCount = result.values().stream().filter(SimplePersistenceMetadata::isId).count();
-            if (idCount == 0) {
-                messager.printMessage(Diagnostic.Kind.WARNING,
-                        "⚠️ No @Id field found in " + rootEntity.getQualifiedName(), rootEntity);
-            } else if (idCount > 1 && !AnnotationProcessorUtils.hasAnnotation(rootEntity, "jakarta.persistence.IdClass")) {
-                messager.printMessage(Diagnostic.Kind.WARNING,
-                        "⚠️ " + rootEntity.getQualifiedName() + " is not annotated with @jakarta.persistence.IdClass but multiple @Id fields detected", rootEntity);
-            }
-        }
-
-        return result;
-    }
-
-    /**
      * Analyzes a single field and produces its {@link SimplePersistenceMetadata} description.
      * <p>
      * The analysis detects:
@@ -541,8 +555,7 @@ public class EntityProcessor {
     private Optional<String> extractMappedBy(VariableElement field) {
         for (AnnotationMirror ann : field.getAnnotationMirrors()) {
             String annType = ann.getAnnotationType().toString();
-            if (annType.equals("jakarta.persistence.OneToMany") ||
-                    annType.equals("jakarta.persistence.ManyToMany")) {
+            if (annType.equals("jakarta.persistence.OneToMany") || annType.equals("jakarta.persistence.ManyToMany")) {
                 for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
                         ann.getElementValues().entrySet()) {
                     if (entry.getKey().getSimpleName().toString().equals("mappedBy")) {
@@ -577,19 +590,6 @@ public class EntityProcessor {
             }
         }
         return Optional.empty();
-    }
-
-    /**
-     * Indicates whether the given fully qualified type name is considered a basic JPA scalar type.
-     * <p>
-     * Basic types are treated as terminal and non-navigable in the metadata graph.
-     * </p>
-     *
-     * @param typeName the fully qualified type name
-     * @return {@code true} if the type is a basic JPA type, {@code false} otherwise
-     */
-    private boolean isJpaBasicType(String typeName) {
-        return BASIC_JPA_TYPES.contains(typeName);
     }
 
     /**

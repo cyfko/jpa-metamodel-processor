@@ -41,9 +41,19 @@ public class EntityProcessorTest {
             }
         """);
 
+        JavaFileObject dtoclass = JavaFileObjects.forSourceString("com.example.UserDTO", """
+            package com.example;
+            import io.github.cyfko.jpa.metamodel.Projection;
+
+            @Projection(entity=com.example.User.class)
+            public class UserDTO {
+                private String name;
+            }
+        """);
+
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .compile(entity, role);
+                .compile(entity, role, dtoclass);
 
         assertThat(compilation).succeeded();
 
@@ -117,9 +127,19 @@ public class EntityProcessorTest {
             }
         """);
 
+        JavaFileObject dtoclass = JavaFileObjects.forSourceString("com.example.InvoiceDTO", """
+            package com.example;
+            import io.github.cyfko.jpa.metamodel.Projection;
+
+            @Projection(entity=com.example.Invoice.class)
+            public class InvoiceDTO {
+                private String label;
+            }
+        """);
+
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .compile(baseEntity, entityKey, concreteEntity);
+                .compile(baseEntity, entityKey, concreteEntity, dtoclass);
 
         assertThat(compilation).succeeded();
 
@@ -166,9 +186,19 @@ public class EntityProcessorTest {
             }
         """);
 
+        JavaFileObject dtoclass = JavaFileObjects.forSourceString("com.example.InvoiceDTO", """
+            package com.example;
+            import io.github.cyfko.jpa.metamodel.Projection;
+
+            @Projection(entity=com.example.Invoice.class)
+            public class InvoiceDTO {
+                private String label;
+            }
+        """);
+
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .compile(entityKey, concreteEntity);
+                .compile(entityKey, concreteEntity, dtoclass);
 
         assertThat(compilation).failed();
         assertThat(compilation).hadErrorContaining("com.example.EntityKey is not embeddable. Missing @jakarta.persistence.Embeddable annotation on it.");
@@ -201,9 +231,19 @@ public class EntityProcessorTest {
             }
         """);
 
+        JavaFileObject dtoclass = JavaFileObjects.forSourceString("com.example.InvoiceDTO", """
+            package com.example;
+            import io.github.cyfko.jpa.metamodel.Projection;
+
+            @Projection(entity=com.example.Invoice.class)
+            public class InvoiceDTO {
+                private Long id;
+            }
+        """);
+
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .compile(entityKey, concreteEntity);
+                .compile(entityKey, concreteEntity, dtoclass);
 
         assertThat(compilation).failed();
         assertThat(compilation).hadErrorContaining("com.example.SharedPart is not embeddable. Missing @jakarta.persistence.Embeddable annotation on it.");
@@ -268,9 +308,19 @@ public class EntityProcessorTest {
             }
         """);
 
+        JavaFileObject dtoclass = JavaFileObjects.forSourceString("com.example.OrderItemDTO", """
+            package com.example;
+            import io.github.cyfko.jpa.metamodel.Projection;
+
+            @Projection(entity=com.example.OrderItem.class)
+            public class OrderItemDTO {
+                private Long orderId;
+            }
+        """);
+
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .compile(idClass, orderEntity, productEntity, orderItemEntity);
+                .compile(idClass, orderEntity, productEntity, orderItemEntity, dtoclass);
 
         assertThat(compilation).succeeded();
 
@@ -329,9 +379,19 @@ public class EntityProcessorTest {
             }
         """);
 
+        JavaFileObject dtoclass = JavaFileObjects.forSourceString("com.example.CustomerDTO", """
+            package com.example;
+            import io.github.cyfko.jpa.metamodel.Projection;
+
+            @Projection(entity=com.example.Customer.class)
+            public class CustomerDTO {
+                private String loyaltyCode;
+            }
+        """);
+
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .compile(base, subclass);
+                .compile(base, subclass, dtoclass);
 
         assertThat(compilation).succeeded();
 
@@ -366,9 +426,19 @@ public class EntityProcessorTest {
             }
         """);
 
+        JavaFileObject dtoclass = JavaFileObjects.forSourceString("com.example.NoIdEntityDTO", """
+            package com.example;
+            import io.github.cyfko.jpa.metamodel.Projection;
+
+            @Projection(entity=com.example.NoIdEntity.class)
+            public class NoIdEntityDTO {
+                private String name;
+            }
+        """);
+
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .compile(entity);
+                .compile(entity, dtoclass);
 
         assertThat(compilation).succeeded();
         assertThat(compilation).hadWarningContaining("No @Id field found in com.example.NoIdEntity");
@@ -389,9 +459,19 @@ public class EntityProcessorTest {
             }
         """);
 
+        JavaFileObject dtoclass = JavaFileObjects.forSourceString("com.example.MultiIdEntityDTO", """
+            package com.example;
+            import io.github.cyfko.jpa.metamodel.Projection;
+
+            @Projection(entity=com.example.MultiIdEntity.class)
+            public class MultiIdEntityDTO {
+                private Long id1;
+            }
+        """);
+
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .compile(entity);
+                .compile(entity, dtoclass);
 
         assertThat(compilation).succeeded();
         assertThat(compilation).hadWarningContaining("com.example.MultiIdEntity is not annotated with @jakarta.persistence.IdClass but multiple @Id fields detected");
@@ -400,36 +480,46 @@ public class EntityProcessorTest {
     @Test
     void generatesRegistryForCustomerOrderModel() {
         JavaFileObject customer = JavaFileObjects.forSourceString("com.example.Customer", """
-        package com.example;
-        import jakarta.persistence.*;
-        import java.util.List;
-
-        @Entity
-        public class Customer {
-            @Id
-            private Long id;
-            private String name;
-            @OneToMany(mappedBy = "customer")
-            private List<Order> orders;
-        }
-    """);
+            package com.example;
+            import jakarta.persistence.*;
+            import java.util.List;
+    
+            @Entity
+            public class Customer {
+                @Id
+                private Long id;
+                private String name;
+                @OneToMany(mappedBy = "customer")
+                private List<Order> orders;
+            }
+        """);
 
         JavaFileObject order = JavaFileObjects.forSourceString("com.example.Order", """
-        package com.example;
-        import jakarta.persistence.*;
+            package com.example;
+            import jakarta.persistence.*;
+    
+            @Entity
+            public class Order {
+                @Id
+                private Long id;
+                @ManyToOne
+                private Customer customer;
+            }
+        """);
 
-        @Entity
-        public class Order {
-            @Id
-            private Long id;
-            @ManyToOne
-            private Customer customer;
-        }
-    """);
+        JavaFileObject dtoclass = JavaFileObjects.forSourceString("com.example.CustomerDTO", """
+            package com.example;
+            import io.github.cyfko.jpa.metamodel.Projection;
+
+            @Projection(entity=com.example.Customer.class)
+            public class CustomerDTO {
+                private Long id;
+            }
+        """);
 
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .compile(customer, order);
+                .compile(customer, order, dtoclass);
 
         assertThat(compilation).succeeded();
 
@@ -464,85 +554,95 @@ public class EntityProcessorTest {
     @Test
     void generatesRegistryForEcommerceModel() {
         JavaFileObject address = JavaFileObjects.forSourceString("com.example.Address", """
-        package com.example;
-        import jakarta.persistence.Embeddable;
-
-        @Embeddable
-        public class Address {
-            private String street;
-            private String city;
-        }
-    """);
+            package com.example;
+            import jakarta.persistence.Embeddable;
+    
+            @Embeddable
+            public class Address {
+                private String street;
+                private String city;
+            }
+        """);
 
         JavaFileObject customer = JavaFileObjects.forSourceString("com.example.Customer", """
-        package com.example;
-        import jakarta.persistence.*;
-        import java.util.List;
-
-        @Entity
-        public class Customer {
-            @Id
-            private Long id;
-            private String name;
-            private String email;
-            @Embedded
-            private Address address;
-            @OneToMany(mappedBy = "customer")
-            private List<Order> orders;
-        }
-    """);
+            package com.example;
+            import jakarta.persistence.*;
+            import java.util.List;
+    
+            @Entity
+            public class Customer {
+                @Id
+                private Long id;
+                private String name;
+                private String email;
+                @Embedded
+                private Address address;
+                @OneToMany(mappedBy = "customer")
+                private List<Order> orders;
+            }
+        """);
 
         JavaFileObject product = JavaFileObjects.forSourceString("com.example.Product", """
-        package com.example;
-        import jakarta.persistence.*;
-
-        @Entity
-        public class Product {
-            @Id
-            private Long id;
-            private String name;
-            private double price;
-        }
-    """);
+            package com.example;
+            import jakarta.persistence.*;
+    
+            @Entity
+            public class Product {
+                @Id
+                private Long id;
+                private String name;
+                private double price;
+            }
+        """);
 
         JavaFileObject order = JavaFileObjects.forSourceString("com.example.Order", """
-        package com.example;
-        import jakarta.persistence.*;
-        import java.time.LocalDate;
-        import java.util.List;
-
-        @Entity
-        public class Order {
-            @Id
-            private Long id;
-            private LocalDate date;
-            @ManyToOne
-            private Customer customer;
-            @OneToMany(mappedBy = "order")
-            private List<OrderItem> items;
-        }
-    """);
+            package com.example;
+            import jakarta.persistence.*;
+            import java.time.LocalDate;
+            import java.util.List;
+    
+            @Entity
+            public class Order {
+                @Id
+                private Long id;
+                private LocalDate date;
+                @ManyToOne
+                private Customer customer;
+                @OneToMany(mappedBy = "order")
+                private List<OrderItem> items;
+            }
+        """);
 
         JavaFileObject orderItem = JavaFileObjects.forSourceString("com.example.OrderItem", """
-        package com.example;
-        import jakarta.persistence.*;
+            package com.example;
+            import jakarta.persistence.*;
+    
+            @Entity
+            public class OrderItem {
+                @Id
+                @GeneratedValue
+                private Long id;
+                @ManyToOne
+                private Order order;
+                @ManyToOne
+                private Product product;
+                private int quantity;
+            }
+        """);
 
-        @Entity
-        public class OrderItem {
-            @Id
-            @GeneratedValue
-            private Long id;
-            @ManyToOne
-            private Order order;
-            @ManyToOne
-            private Product product;
-            private int quantity;
-        }
-    """);
+        JavaFileObject dtoclass = JavaFileObjects.forSourceString("com.example.OrderDTO", """
+            package com.example;
+            import io.github.cyfko.jpa.metamodel.Projection;
+
+            @Projection(entity=com.example.Order.class)
+            public class OrderDTO {
+                private Long id;
+            }
+        """);
 
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .compile(address, customer, product, order, orderItem);
+                .compile(address, customer, product, order, orderItem, dtoclass);
 
         assertThat(compilation).succeeded();
 
@@ -594,40 +694,52 @@ public class EntityProcessorTest {
     @Test
     void supportsElementCollectionAndTransientFields() {
         JavaFileObject address = JavaFileObjects.forSourceString("com.example.Address", """
-        package com.example;
-        import jakarta.persistence.Embeddable;
-
-        @Embeddable
-        public class Address {
-            private String street;
-            private String city;
-        }
-    """);
+            package com.example;
+            import jakarta.persistence.Embeddable;
+    
+            @Embeddable
+            public class Address {
+                private String street;
+                private String city;
+            }
+        """);
 
         JavaFileObject customer = JavaFileObjects.forSourceString("com.example.Customer", """
-        package com.example;
-        import jakarta.persistence.*;
-        import java.util.Set;
+            package com.example;
+            import jakarta.persistence.*;
+            import java.util.Set;
+    
+            @Entity
+            public class Customer {
+                @Id
+                private Long id;
+    
+                @ElementCollection
+                private Set<String> tags;
+    
+                @ElementCollection
+                private Set<Address> addresses;
+    
+                @Transient
+                private String cachedDisplayName;
+            }
+        """);
 
-        @Entity
-        public class Customer {
-            @Id
-            private Long id;
+        JavaFileObject dtoclass = JavaFileObjects.forSourceString("com.example.CustomerDTO", """
+            package com.example;
+            import io.github.cyfko.jpa.metamodel.Projection;
+            import java.util.Set;
 
-            @ElementCollection
-            private Set<String> tags;
-
-            @ElementCollection
-            private Set<Address> addresses;
-
-            @Transient
-            private String cachedDisplayName;
-        }
-    """);
+            @Projection(entity=com.example.Customer.class)
+            public class CustomerDTO {
+                private Long id;
+                private Set<String> tags;
+            }
+        """);
 
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .compile(address, customer);
+                .compile(address, customer, dtoclass);
 
         assertThat(compilation).succeeded();
 
@@ -706,9 +818,19 @@ public class EntityProcessorTest {
             }
         """);
 
+        JavaFileObject dtoclass = JavaFileObjects.forSourceString("com.example.AuthorDTO", """
+            package com.example;
+            import io.github.cyfko.jpa.metamodel.Projection;
+
+            @Projection(entity=com.example.Author.class)
+            public class AuthorDTO {
+                private Long id;
+            }
+        """);
+
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .compile(book, author);
+                .compile(book, author, dtoclass);
 
         assertThat(compilation).succeeded();
 
@@ -782,9 +904,19 @@ public class EntityProcessorTest {
             }
         """);
 
+        JavaFileObject dtoclass = JavaFileObjects.forSourceString("com.example.TaskDTO", """
+            package com.example;
+            import io.github.cyfko.jpa.metamodel.Projection;
+
+            @Projection(entity=com.example.Task.class)
+            public class TaskDTO {
+                private Long id;
+            }
+        """);
+
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .compile(status, entity);
+                .compile(status, entity, dtoclass);
 
         assertThat(compilation).succeeded();
 
@@ -821,20 +953,31 @@ public class EntityProcessorTest {
     @Test
     void generatedRegistryCanBeLoadedViaReflection() throws Exception {
         JavaFileObject entity = JavaFileObjects.forSourceString("com.example.TestEntity", """
-        package com.example;
-        import jakarta.persistence.*;
+            package com.example;
+            import jakarta.persistence.*;
+    
+            @Entity
+            public class TestEntity {
+                @Id
+                private Long id;
+                private String name;
+            }
+        """);
 
-        @Entity
-        public class TestEntity {
-            @Id
-            private Long id;
-            private String name;
-        }
-    """);
+        JavaFileObject dtoclass = JavaFileObjects.forSourceString("com.example.TestEntityDTO", """
+            package com.example;
+            import io.github.cyfko.jpa.metamodel.Projection;
+
+            @Projection(entity=com.example.TestEntity.class)
+            public class TestEntityDTO {
+                private Long id;
+                private String name;
+            }
+        """);
 
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .compile(entity);
+                .compile(entity, dtoclass);
 
         assertThat(compilation).succeeded();
 

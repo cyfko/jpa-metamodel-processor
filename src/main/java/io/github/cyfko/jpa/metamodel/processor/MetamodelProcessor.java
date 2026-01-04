@@ -2,12 +2,16 @@ package io.github.cyfko.jpa.metamodel.processor;
 
 import com.google.auto.service.AutoService;
 import io.github.cyfko.jpa.metamodel.Projection;
-import jakarta.persistence.Entity;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
-import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.*;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -24,10 +28,7 @@ import java.util.Set;
  * <p>This ensures that entity metadata is available when validating projection mappings.</p>
  */
 @AutoService(Processor.class)
-@SupportedAnnotationTypes({
-    "jakarta.persistence.Entity",
-    "io.github.cyfko.filterql.jpa.metamodel.Projection"
-})
+@SupportedAnnotationTypes("io.github.cyfko.jpa.metamodel.Projection")
 @SupportedSourceVersion(SourceVersion.RELEASE_21)
 public class MetamodelProcessor extends AbstractProcessor {
 
@@ -51,39 +52,65 @@ public class MetamodelProcessor extends AbstractProcessor {
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         Messager messager = processingEnv.getMessager();
 
-        // Phase 1: Process entities first (only once)
+        // ==================== Phase 0 : Collecte des entités référencées ====================
+        Set<String> referencedEntities = new HashSet<>();
+        Set<TypeElement> projectionDtos = new HashSet<>();
+        for (Element element : roundEnv.getElementsAnnotatedWith(Projection.class)) {
+            if (element.getKind() != ElementKind.CLASS) continue;
+
+            TypeElement dtoClass = (TypeElement) element;
+            projectionDtos.add(dtoClass);
+            for (AnnotationMirror mirror : dtoClass.getAnnotationMirrors()) {
+                if (mirror.getAnnotationType().toString().equals("io.github.cyfko.jpa.metamodel.Projection")) {
+                    for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : mirror.getElementValues().entrySet()) {
+                        if (entry.getKey().getSimpleName().toString().equals("entity")) {
+                            TypeMirror entityTypeMirror = (TypeMirror) entry.getValue().getValue();
+                            TypeElement entityClass = (TypeElement) ((DeclaredType) entityTypeMirror).asElement();
+                            referencedEntities.add(entityClass.getQualifiedName().toString());
+                        }
+                    }
+                }
+            }
+        }
+
+        // ==================== Phase 1 : Traitement des entités nécessaires ====================
         if (!entitiesProcessed) {
-            if (!roundEnv.getElementsAnnotatedWith(Entity.class).isEmpty()) {
+            if (!referencedEntities.isEmpty()) {
                 messager.printMessage(Diagnostic.Kind.NOTE,
                     "═══════════════════════════════════════════════════");
-                messager.printMessage(Diagnostic.Kind.NOTE,
-                    "  Phase 1: Entity Processing");
+                messager.printMessage(Diagnostic.Kind.NOTE, "  Phase 1: Entity Metadata Extraction");
                 messager.printMessage(Diagnostic.Kind.NOTE,
                     "═══════════════════════════════════════════════════");
-                
-                entityProcessor.processEntities(roundEnv);
+
+                entityProcessor.setReferencedEntities(referencedEntities);
+                entityProcessor.processEntities();
                 entitiesProcessed = true;
             }
         }
 
-        // Phase 2: Process projections (after entities are available)
-        if (entitiesProcessed && !roundEnv.getElementsAnnotatedWith(Projection.class).isEmpty()) {
+        // ==================== Phase 2 : Traitement des projections ====================
+        if (entitiesProcessed && !projectionDtos.isEmpty()) {
             messager.printMessage(Diagnostic.Kind.NOTE,
                 "═══════════════════════════════════════════════════");
-            messager.printMessage(Diagnostic.Kind.NOTE,
-                "  Phase 2: Projection Processing");
+            messager.printMessage(Diagnostic.Kind.NOTE, "  Phase 2: Projection Processing");
             messager.printMessage(Diagnostic.Kind.NOTE,
                 "═══════════════════════════════════════════════════");
-            
-            projectionProcessor.processProjections(roundEnv);
+            projectionProcessor.setReferencedProjection(projectionDtos);
+            projectionProcessor.processProjections();
         }
 
-        // Final round: Generate all implementations
+        // ==================== Phase 4 : Post-vérification de compatibilité des types ====================
+        if (entitiesProcessed && !projectionDtos.isEmpty()) {
+            for (TypeElement dtoClass : projectionDtos) {
+                //verifyProjectionTypeCompatibility(dtoClass, messager, new HashSet<>());
+            }
+        }
+
+        // ==================== Génération des registres ====================
         if (roundEnv.processingOver()) {
             messager.printMessage(Diagnostic.Kind.NOTE,
                 "═══════════════════════════════════════════════════");
-            messager.printMessage(Diagnostic.Kind.NOTE,
-                "  Final Phase: Code Generation");
+            messager.printMessage(Diagnostic.Kind.NOTE, "  Final Phase: Code Generation");
             messager.printMessage(Diagnostic.Kind.NOTE,
                 "═══════════════════════════════════════════════════");
 
@@ -110,5 +137,48 @@ public class MetamodelProcessor extends AbstractProcessor {
         }
 
         return true;
+    }
+
+    /**
+     * Vérifie la compatibilité des types projetés pour un DTO donné.
+     * @param dtoClass le TypeElement du DTO
+     * @param messager pour les messages d'erreur
+     * @param visited  pour éviter les boucles sur projections imbriquées
+     */
+    private void verifyProjectionTypeCompatibility(TypeElement dtoClass, Messager messager, Set<String> visited) {
+        if (!visited.add(dtoClass.getQualifiedName().toString())) return; // éviter récursion infinie
+        // Récupérer la métadonnée de projection
+        var projectionMeta = projectionProcessor.getRegistry().get(dtoClass.getQualifiedName().toString());
+        if (projectionMeta == null) return;
+        String entityClassName = projectionMeta.entityClass();
+        var entityFields = entityProcessor.getRegistry().get(entityClassName);
+        if (entityFields == null) return;
+        for (var mapping : projectionMeta.directMappings()) {
+            String dtoField = mapping.dtoField();
+            String entityField = mapping.entityField();
+            String dtoFieldType = mapping.dtoFieldType();
+            String entityFieldType = entityFields.get(entityField) != null ? entityFields.get(entityField).relatedType() : null;
+            if (entityFieldType == null) {
+                messager.printMessage(Diagnostic.Kind.ERROR, "Field '" + entityField + "' not found on entity " + entityClassName, dtoClass);
+                continue;
+            }
+            // Vérification récursive si le champ projeté est lui-même une projection
+            TypeElement dtoFieldTypeElement = processingEnv.getElementUtils().getTypeElement(dtoFieldType);
+            if (dtoFieldTypeElement != null && projectionProcessor.getRegistry().containsKey(dtoFieldTypeElement.getQualifiedName().toString())) {
+                // Champ DTO = projection imbriquée, vérifier récursivement
+                verifyProjectionTypeCompatibility(dtoFieldTypeElement, messager, visited);
+            } else {
+                // Champ simple : vérifier assignabilité stricte
+                Types types = processingEnv.getTypeUtils();
+                TypeMirror dtoType = dtoFieldTypeElement != null ? dtoFieldTypeElement.asType() : null;
+                TypeElement entityFieldTypeElement = processingEnv.getElementUtils().getTypeElement(entityFieldType);
+                TypeMirror entityType = entityFieldTypeElement != null ? entityFieldTypeElement.asType() : null;
+                if (dtoType != null && entityType != null && !types.isSameType(dtoType, entityType)) {
+                    messager.printMessage(Diagnostic.Kind.ERROR,
+                        "Projected field has a type mismatch '" + dtoField + "' : DTO=" + dtoFieldType + ", Entity=" + entityFieldType,
+                        dtoClass);
+                }
+            }
+        }
     }
 }

@@ -32,6 +32,7 @@ public class ProjectionProcessor {
     private final ProcessingEnvironment processingEnv;
     private final EntityProcessor entityProcessor;
     private final Map<String, SimpleProjectionMetadata> projectionRegistry = new LinkedHashMap<>();
+    private final List<TypeElement> referencedProjections = new ArrayList<>();
 
     public ProjectionProcessor(ProcessingEnvironment processingEnv, EntityProcessor entityProcessor) {
         this.processingEnv = processingEnv;
@@ -52,25 +53,15 @@ public class ProjectionProcessor {
      *   <li>Stores the resulting metadata in an internal registry keyed by DTO type.</li>
      * </ul>
      *
-     * @param roundEnv the current round environment exposing elements annotated with {@code @Projection}
      */
-    public void processProjections(RoundEnvironment roundEnv) {
+    public void processProjections() {
         Messager messager = processingEnv.getMessager();
-        messager.printMessage(Diagnostic.Kind.NOTE, "🎯 Phase 2: Processing @Projection annotations...");
 
-        for (Element element : roundEnv.getElementsAnnotatedWith(Projection.class)) {
-            if (element.getKind() != ElementKind.CLASS) {
-                messager.printMessage(Diagnostic.Kind.ERROR,
-                        "@Projection can only be applied to classes", element);
-                continue;
-            }
-
-            TypeElement dtoClass = (TypeElement) element;
+        for (TypeElement dtoClass : referencedProjections) {
             processProjection(dtoClass, messager);
         }
 
-        messager.printMessage(Diagnostic.Kind.NOTE,
-                "✅ Processed " + projectionRegistry.size() + " projections");
+        messager.printMessage(Diagnostic.Kind.NOTE, "✅ Processed " + projectionRegistry.size() + " projections");
     }
 
     /**
@@ -250,22 +241,10 @@ public class ProjectionProcessor {
     private void insertDirectMapping(VariableElement dtoField, String entityClassName, String entityField, List<SimpleDirectMapping> directMappings) {
         Messager messager = this.processingEnv.getMessager();
 
-        ValidationResult validation = validateEntityFieldPath(entityClassName, entityField, entityFieldFqcn -> {
-            if (! entityFieldFqcn.equals(dtoField.asType().toString())) {
-//                messager.printMessage(
-//                        Diagnostic.Kind.ERROR,
-//                        String.format("Projection has incompatible type on field <%s>. Required: %s, Found: %s.",
-//                                dtoField,
-//                                entityFieldFqcn,
-//                                dtoField.asType().toString()
-//                        )
-//                );
-            }
-        });
+        ValidationResult validation = validateEntityFieldPath(entityClassName, entityField, null);
 
         if (!validation.isValid()) {
-            messager.printMessage(Diagnostic.Kind.ERROR,
-                    validation.errorMessage(), dtoField);
+            messager.printMessage(Diagnostic.Kind.ERROR, validation.errorMessage(), dtoField);
             return;
         }
 
@@ -279,8 +258,7 @@ public class ProjectionProcessor {
             directMappings.add(new SimpleDirectMapping(dtoField.toString(), entityField, dtoField.asType().toString(), Optional.empty()));
         }
 
-        messager.printMessage(Diagnostic.Kind.NOTE,
-                "  ✅ " + dtoField + " → " + entityField);
+        messager.printMessage(Diagnostic.Kind.NOTE, "  ✅ " + dtoField + " → " + entityField);
     }
 
     /**
@@ -543,8 +521,7 @@ public class ProjectionProcessor {
 
             if (currentMetadata == null) {
                 return ValidationResult.error(
-                        String.format("Field '%s' not found in %s (path: %s)",
-                                segment, currentClassName, fieldPath)
+                        String.format("Field '%s' not found in %s (path: %s)", segment, currentClassName, fieldPath)
                 );
             }
 
@@ -552,8 +529,7 @@ public class ProjectionProcessor {
             EntityProcessor.SimplePersistenceMetadata fieldMetadata = currentMetadata.get(segment);
             if (fieldMetadata == null) {
                 return ValidationResult.error(
-                        String.format("Field '%s' not found in entity %s (path: %s)",
-                                segment, getSimpleName(currentClassName), fieldPath)
+                        String.format("Field '%s' not found in entity %s (path: %s)", segment, getSimpleName(currentClassName), fieldPath)
                 );
             }
 
@@ -561,8 +537,7 @@ public class ProjectionProcessor {
             if (i < segments.length - 1) {
                 if (BASIC_JPA_TYPES.contains(fieldMetadata.relatedType())) {
                     return ValidationResult.error(
-                            String.format("Cannot navigate through scalar field '%s' in %s",
-                                    segment, getSimpleName(currentClassName))
+                            String.format("Cannot navigate through scalar field '%s' in %s", segment, getSimpleName(currentClassName))
                     );
                 }
 
@@ -595,8 +570,7 @@ public class ProjectionProcessor {
             }
         }
         throw new NoSuchFieldException(
-                String.format("Field '%s' not found in %s or its superclasses",
-                        fieldName, clazz.getSimpleName())
+                String.format("Field '%s' not found in %s or its superclasses", fieldName, clazz.getSimpleName())
         );
     }
 
@@ -773,6 +747,10 @@ public class ProjectionProcessor {
         return str.substring(0, 1).toUpperCase() + str.substring(1);
     }
 
+    public void setReferencedProjection(Set<TypeElement> projectionDtos) {
+        this.referencedProjections.addAll(projectionDtos);
+    }
+
     /**
      * Lightweight value object describing a direct mapping between a DTO field and
      * an entity field, including optional collection metadata. 
@@ -782,7 +760,7 @@ public class ProjectionProcessor {
      * @param dtoFieldType   the DTO field type as a fully qualified name
      * @param collection     optional collection metadata if the field represents a collection
      */
-    private record SimpleDirectMapping(String dtoField,
+    public record SimpleDirectMapping(String dtoField,
                                        String entityField,
                                        String dtoFieldType,
                                        Optional<DirectMapping.CollectionMetadata> collection){}

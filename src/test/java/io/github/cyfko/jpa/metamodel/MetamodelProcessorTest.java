@@ -29,7 +29,7 @@ class MetamodelProcessorTest {
                 .compile(userEntity, addressEmbeddable, departmentEntity, orderEntity, userDTO, orderDTO, computationProvider);
 
         assertThat(compilation).succeeded();
-        assertThat(compilation).hadNoteContaining("Phase 1: Entity Processing");
+        assertThat(compilation).hadNoteContaining("Phase 1: Entity Metadata Extraction");
         assertThat(compilation).hadNoteContaining("Phase 2: Projection Processing");
     }
 
@@ -39,10 +39,14 @@ class MetamodelProcessorTest {
         JavaFileObject addressEmbeddable = JavaFileObjects.forResource("testdata/Address.java");
         JavaFileObject departmentEntity = JavaFileObjects.forResource("testdata/Department.java");
         JavaFileObject orderEntity = JavaFileObjects.forResource("testdata/Order.java");
+        JavaFileObject userDTO = JavaFileObjects.forResource("testdata/UserDTO.java");
+        JavaFileObject orderDTO = JavaFileObjects.forResource("testdata/OrderDTO.java");
+        JavaFileObject orderSummaryDTO = JavaFileObjects.forResource("testdata/OrderSummaryDTO.java");
+        JavaFileObject computationProvider = JavaFileObjects.forResource("testdata/TestComputationProvider.java");
 
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .compile(userEntity, addressEmbeddable, departmentEntity, orderEntity);
+                .compile(userEntity, addressEmbeddable, departmentEntity, orderEntity, userDTO, orderDTO, orderSummaryDTO, computationProvider);
 
         assertThat(compilation).succeeded();
         assertThat(compilation)
@@ -90,10 +94,14 @@ class MetamodelProcessorTest {
         JavaFileObject addressEmbeddable = JavaFileObjects.forResource("testdata/Address.java");
         JavaFileObject departmentEntity = JavaFileObjects.forResource("testdata/Department.java");
         JavaFileObject orderEntity = JavaFileObjects.forResource("testdata/Order.java");
+        JavaFileObject userDTO = JavaFileObjects.forResource("testdata/UserDTO.java");
+        JavaFileObject orderDTO = JavaFileObjects.forResource("testdata/OrderDTO.java");
+        JavaFileObject orderSummaryDTO = JavaFileObjects.forResource("testdata/OrderSummaryDTO.java");
+        JavaFileObject computationProvider = JavaFileObjects.forResource("testdata/TestComputationProvider.java");
 
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .compile(userEntity, addressEmbeddable, departmentEntity, orderEntity);
+                .compile(userEntity, addressEmbeddable, departmentEntity, orderEntity, userDTO, orderDTO, orderSummaryDTO, computationProvider);
 
         assertThat(compilation).succeeded();
 
