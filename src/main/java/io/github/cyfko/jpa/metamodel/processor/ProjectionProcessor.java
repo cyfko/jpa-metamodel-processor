@@ -212,7 +212,7 @@ public class ProjectionProcessor {
                         }
 
                         // Extraction de @MethodReference (computedBy)
-                        Map<String, Object> computedBy = (Map<String, Object>) params.get("computedBy");
+                        @SuppressWarnings("unchecked") Map<String, Object> computedBy = (Map<String, Object>) params.get("computedBy");
                         String computedByClass = computedBy != null ? (String) computedBy.get("type") : null;
                         String computedByMethod = computedBy != null ? (String) computedBy.get("method") : null;
 

@@ -24,6 +24,24 @@ class ComputedFieldTest {
         assertThrows(IllegalArgumentException.class, () ->
             new ComputedField("field", new String[]{})
         );
+
+        assertThrows(IllegalArgumentException.class, () ->
+                new ComputedField("field", new String[]{"machin"}, (String) null)
+        );
+
+        assertThrows(IllegalArgumentException.class, () ->
+                new ComputedField("field", new String[]{"truc"}, (Class<?>) null)
+        );
+
+        assertThrows(IllegalArgumentException.class, () ->
+                new ComputedField("field", new String[]{"truc"}, null, null)
+        );
+
+        assertDoesNotThrow(() -> new ComputedField("field", new String[]{"truc"}, Object.class, null));
+
+        assertDoesNotThrow(() -> new ComputedField("field", new String[]{"x"}, null, "smth"));
+
+        assertDoesNotThrow(() -> new ComputedField("field", new String[]{"something"}, (ComputedField.MethodReference) null));
     }
 
     @Test
