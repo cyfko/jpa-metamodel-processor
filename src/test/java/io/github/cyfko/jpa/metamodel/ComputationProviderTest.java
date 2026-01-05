@@ -292,8 +292,7 @@ class ComputationProviderTest {
             .compile(entity, computer, dto);
 
         assertThat(compilation).failed();
-        assertThat(compilation).hadErrorContaining("Mismatch on return type");
-        assertThat(compilation).hadErrorContaining(".getFullName has incompatible return type Mismatch on return type. Required: java.lang.String, Found: java.lang.Integer");
+        assertThat(compilation).hadErrorContaining(".getFullName has incompatible return type. Required: java.lang.String, Found: java.lang.Integer");
     }
 
     @Test
@@ -336,7 +335,7 @@ class ComputationProviderTest {
             .compile(entity, computer, dto);
 
         assertThat(compilation).failed();
-        assertThat(compilation).hadErrorContaining("Mismatch on return type");
+        assertThat(compilation).hadErrorContaining("has incompatible return type. Required: java.lang.Integer, Found: int");
     }
 
     // ==================== Test Category 4: Parameter Count Mismatch ====================

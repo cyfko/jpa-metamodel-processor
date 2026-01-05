@@ -148,7 +148,7 @@ public class ProjectionProcessor {
         }
 
         List<SimpleDirectMapping> directMappings = new ArrayList<>();
-        List<ComputedField> computedFields = new ArrayList<>();
+        List<SimpleComputedField> computedFields = new ArrayList<>();
         List<SimpleComputationProvider> computers = new ArrayList<>();
 
         // Process computation providers
@@ -211,8 +211,13 @@ public class ProjectionProcessor {
                             }
                         }
 
+                        // Extraction de @MethodReference (computedBy)
+                        Map<String, Object> computedBy = (Map<String, Object>) params.get("computedBy");
+                        String computedByClass = computedBy != null ? (String) computedBy.get("type") : null;
+                        String computedByMethod = computedBy != null ? (String) computedBy.get("method") : null;
+
                         // Validate that compute method exist in any of provided computation providers
-                        ComputedField field = new ComputedField(dtoField, dependencies.toArray(new String[0]));
+                        SimpleComputedField field = new SimpleComputedField(dtoField, dependencies.toArray(new String[0]), computedByClass, computedByMethod);
                         String errMessage = validateComputeMethod(field, enclosedElement.asType(), computers, depsToFqcnMapping);
                         if (errMessage != null){
                             printComputationMethodError(dtoClass, enclosedElement, field, errMessage, computers, depsToFqcnMapping);
@@ -282,18 +287,22 @@ public class ProjectionProcessor {
      */
     private void printComputationMethodError(TypeElement dtoClass,
                                              Element enclosedElement,
-                                             ComputedField field,
+                                             SimpleComputedField field,
                                              String errMessage,
                                              List<SimpleComputationProvider> computers,
                                              Map<String, String> depsToFqcnMapping) {
 
-        String expectedMethodSignature = String.format("public %s get%s(%s);",
+        String expectedMethodSignature = String.format("public %s %s(%s);",
                 enclosedElement.asType().toString(),
-                capitalize(field.dtoField()),
+                field.methodName != null ? field.methodName : "get" + capitalize(field.dtoField()),
                 String.join(", ", Arrays.stream(field.dependencies())
                         .map(d -> depsToFqcnMapping.get(d) + " " + getLastSegment(d,"\\."))
                         .toList())
         );
+
+        if (field.methodClass != null) {
+            computers = List.of(new SimpleComputationProvider(field.methodClass, null));
+        }
 
         String computationProviders = computers.stream().map(SimpleComputationProvider::className).collect(Collectors.joining(", "));
         String msg = String.format("%s \n- Source: %s \n- Providers: %s \n- Expected computer's method: %s ",
@@ -337,14 +346,20 @@ public class ProjectionProcessor {
      * @param depsToFqcnMapping mapping from dependency paths to their fully qualified class names
      * @return {@code null} if a compatible compute method is found, otherwise a human-readable error message
      */
-    private String validateComputeMethod(ComputedField field,
+    private String validateComputeMethod(SimpleComputedField field,
                                            TypeMirror fieldType,
                                            List<SimpleComputationProvider> computers,
                                            Map<String, String> depsToFqcnMapping) {
         Elements elements = processingEnv.getElementUtils();
         Types types = processingEnv.getTypeUtils();
 
-        final String methodName = "get" + capitalize(field.dtoField());
+        final String methodName = (field.methodName != null && !field.methodName().isBlank()) ?
+                field.methodName() :
+                "get" + capitalize(field.dtoField());
+
+        if (field.methodClass != null) {
+            computers = List.of(new SimpleComputationProvider(field.methodClass,null));
+        }
 
         for (SimpleComputationProvider provider : computers) {
             TypeElement providerElement = elements.getTypeElement(provider.className());
@@ -359,7 +374,7 @@ public class ProjectionProcessor {
                 // Vérifie le type de retour
                 TypeMirror returnType = method.getReturnType();
                 if( !types.isSameType(returnType, fieldType) ){
-                    return String.format("Method %s.%s has incompatible return type Mismatch on return type. Required: %s, Found: %s.",
+                    return String.format("Method %s.%s has incompatible return type. Required: %s, Found: %s.",
                             provider.className,
                             methodName,
                             fieldType.toString(),
@@ -705,13 +720,16 @@ public class ProjectionProcessor {
      * @param f the computed field descriptor
      * @return a Java expression string constructing a {@code ComputedField}
      */
-    private String formatComputedField(ComputedField f) {
+    private String formatComputedField(SimpleComputedField f) {
         String deps = Arrays.stream(f.dependencies())
                 .map(d -> "\"" + d + "\"")
                 .collect(Collectors.joining(", "));
         return String.format(
-                "                    new ComputedField(\"%s\", new String[]{%s})",
-                f.dtoField(), deps
+                "                    new ComputedField(\"%s\", new String[]{%s}, %s, %s)",
+                f.dtoField(),
+                deps,
+                f.methodClass == null ? null : f.methodClass,
+                f.methodName == null || f.methodName.isBlank() ? null : f.methodName
         );
     }
 
@@ -778,6 +796,11 @@ public class ProjectionProcessor {
                                        Optional<DirectMapping.CollectionMetadata> collection){}
 
     /**
+     * Lightweight value object describing a computed field view on annotation processor.
+     */
+    record SimpleComputedField(String dtoField, String[] dependencies, String methodClass, String methodName){}
+
+    /**
      * Aggregated projection metadata used internally by the processor before being written
      * to generated source code. 
      *
@@ -788,7 +811,7 @@ public class ProjectionProcessor {
      */
     public record SimpleProjectionMetadata(String entityClass,
                                             List<SimpleDirectMapping> directMappings,
-                                            List<ComputedField> computedFields,
+                                            List<SimpleComputedField> computedFields,
                                             SimpleComputationProvider[] computers){}
 
     /**
