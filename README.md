@@ -114,18 +114,21 @@ public class UserDTO {
 - Only entities referenced in the `entity` attribute of `@Projection` are scanned for projection purposes.
 - All fields in a class annotated with `@Projection` are implicitly considered as if annotated with `@Projected`, unless explicitly annotated otherwise.
 
-### 3. Define Computation Providers
 
-Create classes containing computation methods for your `@Computed` fields:
+### 3. Define Computation Providers and External Methods
 
+Create classes containing computation methods for your `@Computed` fields. Methods can be:
+
+- **In a declared provider** (via `@Provider`)
+- **Or in any external class** accessible via `@MethodReference(type = ...)`, even if this class is not listed in the providers
+
+Standard provider example:
 ```java
 public class UserComputations {
-    
     // Static method for fullName
     public static String getFullName(String firstName, String lastName) {
         return firstName + " " + lastName;
     }
-    
     // Instance method for age (can be a Spring bean)
     public Integer getAge(LocalDate birthDate) {
         return Period.between(birthDate, LocalDate.now()).getYears();
@@ -133,7 +136,27 @@ public class UserComputations {
 }
 ```
 
-**Naming convention**: Methods must follow the pattern `get[FieldName]` where `FieldName` is the DTO field name with the first letter capitalized.
+Advanced example: external static method not declared as a provider
+```java
+public class ExternalComputer {
+    public static String joinNames(String first, String last) {
+        return first + ":" + last;
+    }
+}
+
+@Projection(entity = User.class)
+public class UserDTO {
+    @Computed(dependsOn = {"firstName", "lastName"}, computedBy = @MethodReference(type = ExternalComputer.class, method = "joinNames"))
+    private String displayName;
+}
+```
+
+**Resolution behavior:**
+- If `@MethodReference(type = ...)` is used, the method is searched in the specified class, even if it is not a provider.
+- Compilation fails if the method does not exist or the signature does not match.
+- Project tests validate this behavior to guarantee the expected flexibility.
+
+**Naming convention:** Methods in providers should follow the pattern `get[FieldName]` (DTO field name with the first letter capitalized), unless an explicit method is referenced via `@MethodReference`.
 
 ### 4. Use Registries at Runtime
 
