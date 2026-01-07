@@ -43,11 +43,12 @@ public class MetamodelProcessor extends AbstractProcessor {
         this.entityProcessor = new EntityProcessor(processingEnv);
         this.projectionProcessor = new ProjectionProcessor(processingEnv, entityProcessor);
         
-        processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE, "🚀 JPA Metamodel Processor initialized");
+        log("🚀 Projection Metamodel Processor initialized");
     }
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+        log("=== PROCESS ROUND START ===");
         Messager messager = processingEnv.getMessager();
 
         // ==================== Phase 0 : Collecte des entités référencées ====================
@@ -70,11 +71,9 @@ public class MetamodelProcessor extends AbstractProcessor {
         // ==================== Phase 1 : Traitement des entités nécessaires ====================
         if (!entitiesProcessed) {
             if (!referencedEntities.isEmpty()) {
-                messager.printMessage(Diagnostic.Kind.NOTE,
-                    "═══════════════════════════════════════════════════");
-                messager.printMessage(Diagnostic.Kind.NOTE, "  Phase 1: Entity Metadata Extraction");
-                messager.printMessage(Diagnostic.Kind.NOTE,
-                    "═══════════════════════════════════════════════════");
+                log("═══════════════════════════════════════════════════");
+                log("  Phase 1: Entity Metadata Extraction");
+                log("═══════════════════════════════════════════════════");
 
                 entityProcessor.setReferencedEntities(referencedEntities);
                 entityProcessor.processEntities();
@@ -84,11 +83,9 @@ public class MetamodelProcessor extends AbstractProcessor {
 
         // ==================== Phase 2 : Traitement des projections ====================
         if (entitiesProcessed && !projectionDtos.isEmpty()) {
-            messager.printMessage(Diagnostic.Kind.NOTE,
-                "═══════════════════════════════════════════════════");
-            messager.printMessage(Diagnostic.Kind.NOTE, "  Phase 2: Projection Processing");
-            messager.printMessage(Diagnostic.Kind.NOTE,
-                "═══════════════════════════════════════════════════");
+            log("═══════════════════════════════════════════════════");
+            log("  Phase 2: Projection Processing");
+            log("═══════════════════════════════════════════════════");
             projectionProcessor.setReferencedProjection(projectionDtos);
             projectionProcessor.processProjections();
         }
@@ -102,11 +99,9 @@ public class MetamodelProcessor extends AbstractProcessor {
 
         // ==================== Génération des registres ====================
         if (roundEnv.processingOver()) {
-            messager.printMessage(Diagnostic.Kind.NOTE,
-                "═══════════════════════════════════════════════════");
-            messager.printMessage(Diagnostic.Kind.NOTE, "  Final Phase: Code Generation");
-            messager.printMessage(Diagnostic.Kind.NOTE,
-                "═══════════════════════════════════════════════════");
+            log("═══════════════════════════════════════════════════");
+            log("  Final Phase: Code Generation");
+            log("═══════════════════════════════════════════════════");
 
             // Generate entity registry
             if (!entityProcessor.getRegistry().isEmpty()) {
@@ -118,19 +113,15 @@ public class MetamodelProcessor extends AbstractProcessor {
                 projectionProcessor.generateProviderImpl();
             }
 
-            messager.printMessage(Diagnostic.Kind.NOTE,
-                "═══════════════════════════════════════════════════");
-            messager.printMessage(Diagnostic.Kind.NOTE,
-                "  ✅ Processing Complete");
-            messager.printMessage(Diagnostic.Kind.NOTE,
-                "     Entities: " + entityProcessor.getRegistry().size());
-            messager.printMessage(Diagnostic.Kind.NOTE,
-                "     Projections: " + projectionProcessor.getRegistry().size());
-            messager.printMessage(Diagnostic.Kind.NOTE,
-                "═══════════════════════════════════════════════════");
+            log("═══════════════════════════════════════════════════");
+            log("  ✅ Processing Complete");
+            log("     Entities: " + entityProcessor.getRegistry().size());
+            log("     Projections: " + projectionProcessor.getRegistry().size());
+            log("═══════════════════════════════════════════════════");
         }
 
-        return true;
+        log("=== PROCESS ROUND END ===");
+        return false; // Permettre la coexistence avec d'autres processeurs d'annotations traitant @Projection
     }
 
     /**
@@ -174,5 +165,12 @@ public class MetamodelProcessor extends AbstractProcessor {
                 }
             });
         }
+    }
+
+    private void log(String message) {
+        processingEnv.getMessager().printMessage(
+                Diagnostic.Kind.NOTE,
+                "[ProjectionProcessor] " + message
+        );
     }
 }
