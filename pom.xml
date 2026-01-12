@@ -70,6 +70,13 @@
     </properties>
 
     <dependencies>
+        <!-- Projection specification -->
+        <dependency>
+            <groupId>io.github.cyfko</groupId>
+            <artifactId>projection-spec</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+
         <!-- Annotation Processing -->
         <dependency>
             <groupId>com.google.auto.service</groupId>
@@ -78,26 +85,18 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- JPA API (provided scope - users will bring their own) -->
-        <dependency>
-            <groupId>jakarta.persistence</groupId>
-            <artifactId>jakarta.persistence-api</artifactId>
-            <version>${jakarta-persistence.version}</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <!-- Projection specification -->
-        <dependency>
-            <groupId>io.github.cyfko</groupId>
-            <artifactId>projection-spec</artifactId>
-            <version>1.0.0</version>
-        </dependency>
-
         <!-- Test Dependencies -->
         <dependency>
             <groupId>com.google.testing.compile</groupId>
             <artifactId>compile-testing</artifactId>
             <version>${compile-testing.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- JPA API (provided scope - users will bring their own) -->
+        <dependency>
+            <groupId>jakarta.persistence</groupId>
+            <artifactId>jakarta.persistence-api</artifactId>
+            <version>${jakarta-persistence.version}</version>
             <scope>test</scope>
         </dependency>
 
