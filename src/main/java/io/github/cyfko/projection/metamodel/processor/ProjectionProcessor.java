@@ -240,22 +240,31 @@ public class ProjectionProcessor {
                         // Extract reducers
                         @SuppressWarnings("unchecked")
                         List<String> reducersList = (List<String>) params.get("reducers");
-                        String[] reducers = reducersList != null ? reducersList.toArray(new String[0]) : new String[0];
+                        String[] reducerNames = reducersList != null ? reducersList.toArray(new String[0])
+                                : new String[0];
 
                         // Validate reducers: each collection dependency MUST have a reducer
                         List<String> collectionDeps = findCollectionDependencies(entityClassName, dependencies);
-                        if (!collectionDeps.isEmpty() && reducers.length != collectionDeps.size()) {
+                        if (!collectionDeps.isEmpty() && reducerNames.length != collectionDeps.size()) {
                             messager.printMessage(Diagnostic.Kind.ERROR,
                                     String.format("Computed field '%s': reducers count (%d) must match " +
                                             "collection dependency count (%d). Collection dependencies: %s",
-                                            dtoField, reducers.length, collectionDeps.size(), collectionDeps),
+                                            dtoField, reducerNames.length, collectionDeps.size(), collectionDeps),
                                     dtoClass);
                             return;
                         }
 
+                        // Build reducer indices (index of each collection dependency in the
+                        // dependencies array)
+                        int[] reducerIndices = new int[collectionDeps.size()];
+                        for (int i = 0; i < collectionDeps.size(); i++) {
+                            reducerIndices[i] = dependencies.indexOf(collectionDeps.get(i));
+                        }
+
                         // Validate that compute method exist in any of provided computation providers
                         SimpleComputedField field = new SimpleComputedField(dtoField,
-                                dependencies.toArray(new String[0]), reducers, computedByClass, computedByMethod);
+                                dependencies.toArray(new String[0]), reducerIndices, reducerNames,
+                                computedByClass, computedByMethod);
                         String errMessage = validateComputeMethod(field, enclosedElement.asType(), computers,
                                 depsToFqcnMapping);
                         if (errMessage != null) {
@@ -268,7 +277,8 @@ public class ProjectionProcessor {
                         computedFields.add(field);
                         messager.printMessage(Diagnostic.Kind.NOTE,
                                 "  🧮 " + dtoField + " ← [" + String.join(", ", dependencies) + "]" +
-                                        (reducers.length > 0 ? " ⬇ [" + String.join(", ", reducers) + "]" : ""));
+                                        (reducerNames.length > 0 ? " ⬇ [" + String.join(", ", reducerNames) + "]"
+                                                : ""));
                     },
                     null);
         }
@@ -894,26 +904,32 @@ public class ProjectionProcessor {
                 .map(d -> "\"" + d + "\"")
                 .collect(Collectors.joining(", "));
 
-        String reds = Arrays.stream(f.reducers())
-                .map(r -> "\"" + r + "\"")
-                .collect(Collectors.joining(", "));
-
-        if (f.methodClass == null && f.methodName == null) {
-            return String.format(
-                    "                    new ComputedField(\"%s\", new String[]{%s}, new String[]{%s})",
-                    f.dtoField(),
-                    deps,
-                    reds);
+        // Build ReducerMapping array: new ComputedField.ReducerMapping(index,
+        // "REDUCER")
+        StringBuilder reducerMappings = new StringBuilder();
+        for (int i = 0; i < f.reducerIndices().length; i++) {
+            if (i > 0)
+                reducerMappings.append(", ");
+            reducerMappings.append(String.format("new ComputedField.ReducerMapping(%d, \"%s\")",
+                    f.reducerIndices()[i], f.reducerNames()[i]));
         }
 
-        String classArg = f.methodClass != null ? f.methodClass + ".class" : "null";
-        String methodArg = f.methodName != null && !f.methodName.isBlank() ? "\"" + f.methodName + "\"" : "null";
+        if (f.methodClass() == null && f.methodName() == null) {
+            return String.format(
+                    "                    new ComputedField(\"%s\", new String[]{%s}, new ComputedField.ReducerMapping[]{%s})",
+                    f.dtoField(),
+                    deps,
+                    reducerMappings);
+        }
+
+        String classArg = f.methodClass() != null ? f.methodClass() + ".class" : "null";
+        String methodArg = f.methodName() != null && !f.methodName().isBlank() ? "\"" + f.methodName() + "\"" : "null";
 
         return String.format(
-                "                    new ComputedField(\"%s\", new String[]{%s}, new String[]{%s}, %s, %s)",
+                "                    new ComputedField(\"%s\", new String[]{%s}, new ComputedField.ReducerMapping[]{%s}, %s, %s)",
                 f.dtoField(),
                 deps,
-                reds,
+                reducerMappings,
                 classArg,
                 methodArg);
     }
@@ -1014,14 +1030,15 @@ public class ProjectionProcessor {
      * Lightweight value object describing a computed field view on annotation
      * processor.
      *
-     * @param dtoField     the DTO field name
-     * @param dependencies the dependency paths
-     * @param reducers     the reducer names for collection dependencies
-     * @param methodClass  the method class, if specified
-     * @param methodName   the method name, if specified
+     * @param dtoField       the DTO field name
+     * @param dependencies   the dependency paths
+     * @param reducerIndices the indices of dependencies that have reducers
+     * @param reducerNames   the reducer names corresponding to each index
+     * @param methodClass    the method class, if specified
+     * @param methodName     the method name, if specified
      */
-    record SimpleComputedField(String dtoField, String[] dependencies, String[] reducers, String methodClass,
-            String methodName) {
+    record SimpleComputedField(String dtoField, String[] dependencies, int[] reducerIndices, String[] reducerNames,
+            String methodClass, String methodName) {
     }
 
     /**

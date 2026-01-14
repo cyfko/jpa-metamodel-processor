@@ -61,14 +61,14 @@ import java.util.Objects;
  *                        be null or blank)
  * @param dependencies    non-empty array of entity/projection field paths
  *                        required to compute the value
- * @param reducers        array of reducer names for collection dependencies
- *                        (e.g., "SUM", "AVG")
+ * @param reducers        array of reducer mappings linking reducers to their
+ *                        target dependency indices
  * @param methodReference optional method reference metadata describing how the
  *                        value is computed;
  *                        may be {@code null} if the computation is resolved
  *                        elsewhere
  */
-public record ComputedField(String dtoField, String[] dependencies, String[] reducers,
+public record ComputedField(String dtoField, String[] dependencies, ReducerMapping[] reducers,
         MethodReference methodReference) {
 
     public ComputedField {
@@ -100,7 +100,7 @@ public record ComputedField(String dtoField, String[] dependencies, String[] red
      * @param dependencies non-empty array of dependency paths
      */
     public ComputedField(String dtoField, String[] dependencies) {
-        this(dtoField, dependencies, new String[0], null);
+        this(dtoField, dependencies, new ReducerMapping[0], null);
     }
 
     /**
@@ -119,7 +119,7 @@ public record ComputedField(String dtoField, String[] dependencies, String[] red
      *                             not be null)
      */
     public ComputedField(String dtoField, String[] dependencies, Class<?> methodReferenceClass) {
-        this(dtoField, dependencies, new String[0], new MethodReference(methodReferenceClass, null));
+        this(dtoField, dependencies, new ReducerMapping[0], new MethodReference(methodReferenceClass, null));
     }
 
     /**
@@ -135,7 +135,7 @@ public record ComputedField(String dtoField, String[] dependencies, String[] red
      * @param computeMethodName name of the compute method (must not be null)
      */
     public ComputedField(String dtoField, String[] dependencies, String computeMethodName) {
-        this(dtoField, dependencies, new String[0], new MethodReference(null, computeMethodName));
+        this(dtoField, dependencies, new ReducerMapping[0], new MethodReference(null, computeMethodName));
     }
 
     /**
@@ -153,22 +153,23 @@ public record ComputedField(String dtoField, String[] dependencies, String[] red
      */
     public ComputedField(String dtoField, String[] dependencies, Class<?> methodReferenceClass,
             String computeMethodName) {
-        this(dtoField, dependencies, new String[0], new MethodReference(methodReferenceClass, computeMethodName));
+        this(dtoField, dependencies, new ReducerMapping[0],
+                new MethodReference(methodReferenceClass, computeMethodName));
     }
 
     /**
-     * Creates a computed field with reducers for collection dependencies.
+     * Creates a computed field with reducer mappings for collection dependencies.
      *
      * @param dtoField     name of the DTO property (must not be null or blank)
      * @param dependencies non-empty array of dependency paths
-     * @param reducers     array of reducer names for collection dependencies
+     * @param reducers     array of reducer mappings
      */
-    public ComputedField(String dtoField, String[] dependencies, String[] reducers) {
+    public ComputedField(String dtoField, String[] dependencies, ReducerMapping[] reducers) {
         this(dtoField, dependencies, reducers, null);
     }
 
     /**
-     * Creates a computed field with reducers and explicit method reference.
+     * Creates a computed field with reducer mappings and explicit method reference.
      * <p>
      * This constructor is typically used by generated code.
      * </p>
@@ -176,12 +177,11 @@ public record ComputedField(String dtoField, String[] dependencies, String[] red
      * @param dtoField             name of the DTO property (must not be null or
      *                             blank)
      * @param dependencies         non-empty array of dependency paths
-     * @param reducers             array of reducer names for collection
-     *                             dependencies
+     * @param reducers             array of reducer mappings
      * @param methodReferenceClass target class declaring the compute method
      * @param computeMethodName    name of the compute method
      */
-    public ComputedField(String dtoField, String[] dependencies, String[] reducers,
+    public ComputedField(String dtoField, String[] dependencies, ReducerMapping[] reducers,
             Class<?> methodReferenceClass, String computeMethodName) {
         this(dtoField, dependencies, reducers,
                 (methodReferenceClass != null || computeMethodName != null)
@@ -224,6 +224,25 @@ public record ComputedField(String dtoField, String[] dependencies, String[] red
             if (targetClass == null && methodName == null) {
                 throw new IllegalArgumentException("targetClass and methodName cannot be null at the same time");
             }
+        }
+    }
+
+    /**
+     * Maps a reducer to its target dependency index.
+     * <p>
+     * Each reducer applies to a specific collection dependency identified by its
+     * index in the {@link #dependencies()} array.
+     * </p>
+     *
+     * @param dependencyIndex index in the dependencies array (0-based)
+     * @param reducer         the reducer name (e.g., "SUM", "AVG", "COUNT")
+     */
+    public record ReducerMapping(int dependencyIndex, String reducer) {
+        public ReducerMapping {
+            if (dependencyIndex < 0) {
+                throw new IllegalArgumentException("dependencyIndex must be >= 0");
+            }
+            Objects.requireNonNull(reducer, "reducer cannot be null");
         }
     }
 

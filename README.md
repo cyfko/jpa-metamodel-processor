@@ -293,6 +293,45 @@ Field-level annotation to declare a computed field.
 
 **Parameters:**
 - `dependsOn`: Array of paths to entity fields required for computation
+- `reducers`: Array of reducer names for collection dependencies (e.g., `"SUM"`, `"AVG"`, `"COUNT"`, `"MIN"`, `"MAX"`)
+- `computedBy`: Optional `@MethodReference` to specify the computation method
+
+**Reducers for Collection Dependencies:**
+
+When a dependency traverses a collection (e.g., `orders.total`), a **reducer is mandatory** to specify how to aggregate the values:
+
+```java
+@Projection(from = Company.class, providers = @Provider(CompanyComputers.class))
+public class CompanyDTO {
+    // Single collection dependency with SUM reducer
+    @Computed(dependsOn = {"orders.amount"}, reducers = {"SUM"})
+    private BigDecimal totalRevenue;
+    
+    // Multiple collection dependencies with different reducers
+    @Computed(
+        dependsOn = {"orders.amount", "orders.items.quantity"},
+        reducers = {"SUM", "COUNT"}
+    )
+    private Object orderStats;
+    
+    // Mixed: scalar + collection (only collection needs reducer)
+    @Computed(dependsOn = {"name", "orders.amount"}, reducers = {"AVG"})
+    private String summary;
+}
+```
+
+**Available Reducers:** `SUM`, `AVG`, `COUNT`, `COUNT_DISTINCT`, `MIN`, `MAX`
+
+**Runtime API:**
+
+```java
+ComputedField field = ...;
+for (ComputedField.ReducerMapping rm : field.reducers()) {
+    String dependency = field.dependencies()[rm.dependencyIndex()];
+    String reducer = rm.reducer();
+    // "orders.amount" → "SUM"
+}
+```
 
 ### `@Provider`
 

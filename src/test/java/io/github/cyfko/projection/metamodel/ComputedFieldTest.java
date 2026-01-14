@@ -25,13 +25,14 @@ class ComputedFieldTest {
 
         // Empty reducers with null methodReference is valid
         assertDoesNotThrow(
-                () -> new ComputedField("field", new String[] { "truc" }, new String[0], null));
+                () -> new ComputedField("field", new String[] { "truc" }, new ComputedField.ReducerMapping[0], null));
 
         assertDoesNotThrow(() -> new ComputedField("field", new String[] { "truc" }, Object.class, null));
 
         assertDoesNotThrow(() -> new ComputedField("field", new String[] { "x" }, null, "smth"));
 
-        assertDoesNotThrow(() -> new ComputedField("field", new String[] { "something" }, new String[0], null));
+        assertDoesNotThrow(() -> new ComputedField("field", new String[] { "something" },
+                new ComputedField.ReducerMapping[0], null));
     }
 
     @Test

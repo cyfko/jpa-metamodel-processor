@@ -338,7 +338,8 @@ class ReducersValidationTest {
         String generatedCode = generatedFile.getCharContent(true).toString();
 
         // Verify reducers are in generated code
-        assertThat(generatedCode).contains("new String[]{\"SUM\"}");
+        assertThat(generatedCode).contains("new ComputedField.ReducerMapping");
+        assertThat(generatedCode).contains("\"SUM\"");
         assertThat(generatedCode).contains("departments.budget");
     }
 
@@ -385,7 +386,10 @@ class ReducersValidationTest {
     @Test
     void testHasReducers_withReducers_returnsTrue() {
         var field = new io.github.cyfko.projection.metamodel.model.projection.ComputedField(
-                "total", new String[] { "orders.amount" }, new String[] { "SUM" });
+                "total", new String[] { "orders.amount" },
+                new io.github.cyfko.projection.metamodel.model.projection.ComputedField.ReducerMapping[] {
+                        new io.github.cyfko.projection.metamodel.model.projection.ComputedField.ReducerMapping(0, "SUM")
+                });
         assertThat(field.hasReducers()).isTrue();
     }
 
@@ -399,14 +403,24 @@ class ReducersValidationTest {
     @Test
     void testHasReducers_emptyReducers_returnsFalse() {
         var field = new io.github.cyfko.projection.metamodel.model.projection.ComputedField(
-                "fullName", new String[] { "firstName" }, new String[] {});
+                "fullName", new String[] { "firstName" },
+                new io.github.cyfko.projection.metamodel.model.projection.ComputedField.ReducerMapping[] {});
         assertThat(field.hasReducers()).isFalse();
     }
 
     @Test
-    void testReducersArrayContent() {
+    void testReducerMappingContent() {
         var field = new io.github.cyfko.projection.metamodel.model.projection.ComputedField(
-                "stats", new String[] { "a.b", "c.d" }, new String[] { "SUM", "AVG" });
-        assertThat(field.reducers()).containsExactly("SUM", "AVG");
+                "stats", new String[] { "name", "a.b", "c.d" },
+                new io.github.cyfko.projection.metamodel.model.projection.ComputedField.ReducerMapping[] {
+                        new io.github.cyfko.projection.metamodel.model.projection.ComputedField.ReducerMapping(1,
+                                "SUM"),
+                        new io.github.cyfko.projection.metamodel.model.projection.ComputedField.ReducerMapping(2, "AVG")
+                });
+        assertThat(field.reducers()).hasSize(2);
+        assertThat(field.reducers()[0].dependencyIndex()).isEqualTo(1);
+        assertThat(field.reducers()[0].reducer()).isEqualTo("SUM");
+        assertThat(field.reducers()[1].dependencyIndex()).isEqualTo(2);
+        assertThat(field.reducers()[1].reducer()).isEqualTo("AVG");
     }
 }
