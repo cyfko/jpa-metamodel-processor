@@ -113,6 +113,7 @@ public class UserDTO {
 **Note:**
 - Only entities referenced in the `from` attribute of `@Projection` are scanned for projection purposes.
 - All fields in a class annotated with `@Projection` are implicitly considered as if annotated with `@Projected`, unless explicitly annotated otherwise.
+- **Empty projections:** A `@Projection` with no fields is valid and still registers the target entity in `PersistenceRegistry`. This can be useful as a base class for inheritance or to force registration of specific entities.
 
 
 ### 3. Define Computation Providers and External Methods

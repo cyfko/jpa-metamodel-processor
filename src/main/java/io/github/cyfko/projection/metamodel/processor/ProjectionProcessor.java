@@ -741,20 +741,28 @@ public class ProjectionProcessor {
         sb.append("                ").append(metadata.entityClass()).append(".class,\n");
 
         // Direct mappings
-        sb.append("                new DirectMapping[]{\n");
-        for (int i = 0; i < metadata.directMappings().size(); i++) {
-            sb.append(formatDirectMapping(metadata.directMappings().get(i)));
-            sb.append(i < metadata.directMappings().size() - 1 ? ",\n" : "\n");
+        sb.append("                new DirectMapping[]{");
+        if (!metadata.directMappings().isEmpty()) {
+            sb.append("\n");
+            for (int i = 0; i < metadata.directMappings().size(); i++) {
+                sb.append(formatDirectMapping(metadata.directMappings().get(i)));
+                sb.append(i < metadata.directMappings().size() - 1 ? ",\n" : "\n");
+            }
+            sb.append("                ");
         }
-        sb.append("                },\n");
+        sb.append("},\n");
 
         // Computed fields
-        sb.append("                new ComputedField[]{\n");
-        for (int i = 0; i < metadata.computedFields().size(); i++) {
-            sb.append(formatComputedField(metadata.computedFields().get(i)));
-            sb.append(i < metadata.computedFields().size() - 1 ? ",\n" : "\n");
+        sb.append("                new ComputedField[]{");
+        if (!metadata.computedFields().isEmpty()) {
+            sb.append("\n");
+            for (int i = 0; i < metadata.computedFields().size(); i++) {
+                sb.append(formatComputedField(metadata.computedFields().get(i)));
+                sb.append(i < metadata.computedFields().size() - 1 ? ",\n" : "\n");
+            }
+            sb.append("                ");
         }
-        sb.append("                },\n");
+        sb.append("},\n");
 
         // Computers providers
         sb.append("                new ComputationProvider[]{\n");
