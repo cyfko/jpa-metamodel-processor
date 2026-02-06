@@ -5,13 +5,13 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.github.cyfko</groupId>
-    <artifactId>projection-metamodel-processor</artifactId>
+    <artifactId>jpa-metamodel-processor</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
     <name>JPA Metamodel Processor</name>
     <description>Compile-time annotation processor that extracts comprehensive metadata from JPA entities and generates a type-safe registry for introspection, diagnostics, and tooling integration.</description>
-    <url>https://github.com/cyfko/projection-metamodel-processor</url>
+    <url>https://github.com/cyfko/jpa-metamodel-processor</url>
     <inceptionYear>2025</inceptionYear>
 
     <licenses>
@@ -32,15 +32,15 @@
     </developers>
 
     <scm>
-        <connection>scm:git:git://github.com/cyfko/projection-metamodel-processor.git</connection>
-        <developerConnection>scm:git:ssh://github.com:cyfko/projection-metamodel-processor.git</developerConnection>
-        <url>https://github.com/cyfko/projection-metamodel-processor/tree/main</url>
+        <connection>scm:git:git://github.com/cyfko/jpa-metamodel-processor.git</connection>
+        <developerConnection>scm:git:ssh://github.com:cyfko/jpa-metamodel-processor.git</developerConnection>
+        <url>https://github.com/cyfko/jpa-metamodel-processor/tree/main</url>
         <tag>HEAD</tag>
     </scm>
 
     <issueManagement>
         <system>GitHub Issues</system>
-        <url>https://github.com/cyfko/projection-metamodel-processor/issues</url>
+        <url>https://github.com/cyfko/jpa-metamodel-processor/issues</url>
     </issueManagement>
 
     <properties>
@@ -97,7 +97,7 @@
             <groupId>jakarta.persistence</groupId>
             <artifactId>jakarta.persistence-api</artifactId>
             <version>${jakarta-persistence.version}</version>
-            <scope>test</scope>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -110,7 +110,7 @@
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
-            <version>3.24.2</version>
+            <version>3.27.7</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -145,6 +145,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${maven-surefire-plugin.version}</version>
                 <configuration>
+<!--                    <useModulePath>false</useModulePath>-->
                     <argLine>
                         --add-opens java.base/java.lang=ALL-UNNAMED
                         --add-opens java.base/java.util=ALL-UNNAMED

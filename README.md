@@ -164,7 +164,7 @@ public class UserDTO {
 #### Access Entity Metadata
 
 ```java
-import io.github.cyfko.projection.metamodel.PersistenceRegistry;
+import io.github.cyfko.jpametamodel.PersistenceRegistry;
 
 // Check if an entity is registered
 boolean isRegistered = PersistenceRegistry.isEntityRegistered(User.class);
@@ -182,7 +182,7 @@ boolean isRegistered = PersistenceRegistry.isEntityRegistered(User.class);
 #### Access Projection Metadata
 
 ```java
-import io.github.cyfko.projection.metamodel.ProjectionRegistry;
+import io.github.cyfko.jpametamodel.ProjectionRegistry;
 
 // Get metadata for a projection
 ProjectionMetadata projectionMeta = ProjectionRegistry.getMetadataFor(UserDTO.class);
