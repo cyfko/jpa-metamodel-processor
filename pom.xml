@@ -4,7 +4,7 @@
 
     <groupId>io.github.cyfko</groupId>
     <artifactId>jpa-metamodel-processor</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.2-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>JPA Metamodel Processor</name>
@@ -33,7 +33,7 @@
         <connection>scm:git:git://github.com/cyfko/jpa-metamodel-processor.git</connection>
         <developerConnection>scm:git:git@github.com:cyfko/jpa-metamodel-processor.git</developerConnection>
         <url>https://github.com/cyfko/jpa-metamodel-processor/tree/main</url>
-        <tag>v1.0.1</tag>
+        <tag>v1.0.0</tag>
     </scm>
 
     <issueManagement>
