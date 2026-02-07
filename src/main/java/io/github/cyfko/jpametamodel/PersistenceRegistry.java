@@ -3,10 +3,7 @@ package io.github.cyfko.jpametamodel;
 import io.github.cyfko.jpametamodel.api.PersistenceMetadata;
 import io.github.cyfko.jpametamodel.providers.PersistenceRegistryProvider;
 
-import java.lang.reflect.InvocationTargetException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Stream;
 
 /**
@@ -67,15 +64,40 @@ public final class PersistenceRegistry {
      * @return the entity metadata registry provider
      * @throws IllegalStateException if the registry cannot be loaded
      */
-    public static PersistenceRegistryProvider getEntityRegistryProvider() {
-        if (PROVIDER == null) {
-            synchronized (PersistenceRegistry.class) {
-                if (PROVIDER == null) {
-                    PROVIDER = loadProvider();
-                }
-            }
+    public static PersistenceRegistryProvider getProvider() {
+        // 1. Si on a déjà chargé le provider, on le retourne directement (Cache)
+        if (PROVIDER != null) {
+            return PROVIDER;
         }
-        return PROVIDER;
+
+        // 2. TENTATIVE A : ServiceLoader (Méthode standard Java)
+        // Cela fonctionne si le module-info est configuré ou si META-INF est présent
+        ServiceLoader<PersistenceRegistryProvider> loader = ServiceLoader.load(PersistenceRegistryProvider.class);
+        Iterator<PersistenceRegistryProvider> iterator = loader.iterator();
+
+        if (iterator.hasNext()) {
+            PROVIDER = iterator.next();
+            return PROVIDER;
+        }
+
+        // 3. TENTATIVE B : Fallback Manuel (Réflexion)
+        // Si le ServiceLoader échoue (souvent le cas en tests ou sans modules),
+        // on force le chargement de la classe par son nom exact.
+        try {
+            String generatedClassName = "io.github.cyfko.jpametamodel.providers.impl.PersistenceRegistryProviderImpl";
+
+            Class<?> clazz = Class.forName(generatedClassName);
+            PROVIDER = (PersistenceRegistryProvider) clazz.getDeclaredConstructor().newInstance();
+
+            return PROVIDER;
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Cannot load metadata registry: PersistenceRegistryProviderImpl class not found. " +
+                    "Ensure that the annotation processor has run and generated the registry class. " +
+                    "Check that 'io.github.cyfko:jpa-metamodel-processor' is configured as an annotation processor.",
+                    e
+            );
+        }
     }
 
     /**
@@ -86,7 +108,7 @@ public final class PersistenceRegistry {
      * @throws NullPointerException if entityClass is null
      */
     public static Map<String, PersistenceMetadata> getMetadataFor(Class<?> entityClass) {
-        return isEntityRegistered(entityClass) ? getEntityRegistryProvider().getEntityMetadataRegistry().get(entityClass) : getEntityRegistryProvider().getEmbeddableMetadataRegistry().get(entityClass);
+        return isEntityRegistered(entityClass) ? getProvider().getEntityMetadataRegistry().get(entityClass) : getProvider().getEmbeddableMetadataRegistry().get(entityClass);
     }
 
     /**
@@ -100,7 +122,7 @@ public final class PersistenceRegistry {
         if (entityClass == null) {
             throw new NullPointerException("Entity class cannot be null");
         }
-        return getEntityRegistryProvider().getEntityMetadataRegistry().containsKey(entityClass);
+        return getProvider().getEntityMetadataRegistry().containsKey(entityClass);
     }
 
     /**
@@ -114,7 +136,7 @@ public final class PersistenceRegistry {
         if (embeddableClass == null) {
             throw new NullPointerException("Entity class cannot be null");
         }
-        return getEntityRegistryProvider().getEmbeddableMetadataRegistry().containsKey(embeddableClass);
+        return getProvider().getEmbeddableMetadataRegistry().containsKey(embeddableClass);
     }
 
     /**
@@ -123,7 +145,7 @@ public final class PersistenceRegistry {
      * @return the number of registered entities
      */
     public static int getRegisteredEntityCount() {
-        return getEntityRegistryProvider().getEntityMetadataRegistry().size();
+        return getProvider().getEntityMetadataRegistry().size();
     }
 
     /**
@@ -177,33 +199,6 @@ public final class PersistenceRegistry {
             return PersistenceRegistry.getMetadataFor(clazz).keySet().stream();
         } else {
             return Stream.of(entry.getKey());
-        }
-    }
-
-    /**
-     * Loads the generated registry implementation via reflection.
-     * <p>
-     * This method attempts to default construct the generated implementation {@code PersistenceRegistryProviderImpl} class.
-     * </p>
-     *
-     * @return the loaded registry provider
-     * @throws IllegalStateException if the registry cannot be loaded
-     */
-    private static PersistenceRegistryProvider loadProvider() {
-        try {
-            Class<?> registryClass = Class.forName(
-                    "io.github.cyfko.jpametamodel.providers.impl.PersistenceRegistryProviderImpl"
-            );
-            return (PersistenceRegistryProvider) registryClass.getConstructor().newInstance();
-        } catch (ClassNotFoundException e) {
-            throw new IllegalStateException(
-                    "Cannot load metadata registry: PersistenceRegistryProviderImpl class not found. " +
-                            "Ensure that the annotation processor has run and generated the registry class. " +
-                            "Check that 'io.github.cyfko:jpa-metamodel-processor' is configured as an annotation processor.",
-                    e
-            );
-        }  catch (InvocationTargetException | InstantiationException | NoSuchMethodException | IllegalAccessException e) {
-            throw new IllegalStateException(e);
         }
     }
 

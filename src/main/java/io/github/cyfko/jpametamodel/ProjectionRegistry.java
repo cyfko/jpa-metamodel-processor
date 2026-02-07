@@ -8,11 +8,7 @@ import io.github.cyfko.jpametamodel.api.DirectMapping;
 import io.github.cyfko.jpametamodel.api.ProjectionMetadata;
 import io.github.cyfko.jpametamodel.providers.ProjectionRegistryProvider;
 
-import java.lang.reflect.InvocationTargetException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 /**
  * Centralized utility class serving as a unified registry for handling projection metadata within the JPA context.
@@ -65,44 +61,39 @@ public final class ProjectionRegistry {
      * @return the {@link ProjectionRegistryProvider} instance providing projection metadata access
      * @throws IllegalStateException if the implementation class cannot be loaded or instantiated
      */
-    public static ProjectionRegistryProvider getProjectionRegistryProvider() {
-        if (PROVIDER == null) {
-            synchronized (PersistenceRegistry.class) {
-                if (PROVIDER == null) {
-                    PROVIDER = loadProvider();
-                }
-            }
+    public static ProjectionRegistryProvider getProvider() {
+        // 1. Si on a déjà chargé le provider, on le retourne directement (Cache)
+        if (PROVIDER != null) {
+            return PROVIDER;
         }
-        return PROVIDER;
-    }
 
-    /**
-     * Loads the generated projection metadata registry provider implementation via reflection.
-     * <p>
-     * Attempts to instantiate {@code io.github.cyfko.jpametamodel.providers.impl.ProjectionRegistryProviderImpl}
-     * with its default constructor. This class is expected to be generated at compile-time by an annotation processor.
-     * </p>
-     *
-     * @return the loaded {@link ProjectionRegistryProvider} instance
-     * @throws IllegalStateException if the implementation class is not found or cannot be instantiated
-     */
-    private static ProjectionRegistryProvider loadProvider() {
+        // 2. TENTATIVE A : ServiceLoader (Méthode standard Java)
+        // Cela fonctionne si le module-info est configuré ou si META-INF est présent
+        ServiceLoader<ProjectionRegistryProvider> loader = ServiceLoader.load(ProjectionRegistryProvider.class);
+        Iterator<ProjectionRegistryProvider> iterator = loader.iterator();
+
+        if (iterator.hasNext()) {
+            PROVIDER = iterator.next();
+            return PROVIDER;
+        }
+
+        // 3. TENTATIVE B : Fallback Manuel (Réflexion)
+        // Si le ServiceLoader échoue (souvent le cas en tests ou sans modules),
+        // on force le chargement de la classe par son nom exact.
         try {
-            Class<?> registryClass = Class.forName(
-                    "io.github.cyfko.jpametamodel.providers.impl.ProjectionRegistryProviderImpl"
-            );
+            String generatedClassName = "io.github.cyfko.jpametamodel.providers.impl.ProjectionRegistryProviderImpl";
 
-            return (ProjectionRegistryProvider) registryClass.getConstructor().newInstance();
+            Class<?> clazz = Class.forName(generatedClassName);
+            PROVIDER = (ProjectionRegistryProvider) clazz.getDeclaredConstructor().newInstance();
 
-        } catch (ClassNotFoundException e) {
+            return PROVIDER;
+        } catch (Exception e) {
             throw new IllegalStateException(
                     "Cannot load metadata registry: ProjectionRegistryProviderImpl class not found. " +
-                            "Ensure that the annotation processor has run and generated the registry class. " +
-                            "Check that 'io.github.cyfko:jpa-metamodel-processor' is configured as an annotation processor.",
+                    "Ensure that the annotation processor has run and generated the registry class. " +
+                    "Check that 'io.github.cyfko:jpa-metamodel-processor' is configured as an annotation processor.",
                     e
             );
-        } catch (InvocationTargetException | InstantiationException | NoSuchMethodException | IllegalAccessException e) {
-            throw new IllegalStateException("Error instantiating ProjectionRegistryProviderImpl", e);
         }
     }
 
@@ -135,7 +126,7 @@ public final class ProjectionRegistry {
      * </pre>
      */
     public static ProjectionMetadata getMetadataFor(Class<?> dtoClass) {
-        ProjectionMetadata projectionMetadata = getProjectionRegistryProvider().getProjectionMetadataRegistry().get(dtoClass);
+        ProjectionMetadata projectionMetadata = getProvider().getProjectionMetadataRegistry().get(dtoClass);
 
         if (projectionMetadata == null && PersistenceRegistry.isEntityRegistered(dtoClass)) {
             projectionMetadata = getImplicitProjectionMetadataFromEntity(dtoClass);
@@ -187,7 +178,7 @@ public final class ProjectionRegistry {
      * @return {@code true} if metadata for the class exists, {@code false} otherwise
      */
     public static boolean hasProjection(Class<?> dtoClass) {
-        return getProjectionRegistryProvider().getProjectionMetadataRegistry().containsKey(dtoClass);
+        return getProvider().getProjectionMetadataRegistry().containsKey(dtoClass);
     }
 
     /**
