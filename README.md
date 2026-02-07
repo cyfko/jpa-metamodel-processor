@@ -341,6 +341,46 @@ Annotation to declare a computation provider.
 - `value`: The provider class (required)
 - `bean`: The bean name for dependency injection (optional)
 
+## 📦 Java Modules (JPMS) Configuration
+
+If your project uses the Java Platform Module System (i.e., you have a `module-info.java` file), you must follow these specific steps to allow the library to discover the generated metamodel code.
+
+> **Note:** If you are not using Java Modules (e.g., a standard Spring Boot application without `module-info.java`), you can **skip this section**.
+
+### 1. Update `module-info.java`
+
+You need to authorize the library to access the generated implementation via reflection. Add the following directives to your module descriptor:
+
+```java
+module com.mycompany.myproject {
+    // 1. Require the library
+    requires io.github.cyfko.jpametamodel;
+
+    // 2. Open the generated package to the library
+    // This allows the PersistenceRegistry to instantiate the generated provider via reflection.
+    opens io.github.cyfko.jpametamodel.providers.impl to io.github.cyfko.jpametamodel;
+}
+```
+
+### 2. Create a "Placeholder" Package File (Crucial)
+Since the `io.github.cyfko.jpametamodel.providers.impl` package is populated only after the annotation processor runs, 
+the Java compiler might throw a "package does not exist" error when processing the opens directive in step 1.
+
+To fix this, you must explicitly create the package structure in your source tree with a placeholder file.
+
+**Create the following file**: 
+`src/main/java/io/github/cyfko/jpametamodel/providers/impl/package-info.java`
+
+With this content:
+```java
+/**
+ * Placeholder package to ensure the package exists at compile-time 
+ * for JPMS 'opens' directive compatibility.
+ */
+package io.github.cyfko.jpametamodel.providers.impl;
+```
+
+This ensures the package technically exists before compilation starts, satisfying the strict module checks.
 
 ## ⚠️ Limitations
 
