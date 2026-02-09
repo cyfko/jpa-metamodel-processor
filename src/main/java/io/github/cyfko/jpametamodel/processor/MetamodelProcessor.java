@@ -2,7 +2,6 @@ package io.github.cyfko.jpametamodel.processor;
 
 import com.google.auto.service.AutoService;
 import io.github.cyfko.projection.Projection;
-import io.github.cyfko.jpametamodel.util.AnnotationProcessorUtils;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;

@@ -31,7 +31,7 @@ class ProjectionIntegrationTest {
                                 .forResource("testdata/TestComputationProvider.java");
 
                 Compilation compilation = Compiler.javac()
-                                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                                .withProcessors(new MetamodelProcessor())
                                 .compile(userEntity, addressEmbeddable, departmentEntity, orderEntity, userDTO,
                                                 orderDTO, computationProvider);
 
@@ -59,7 +59,7 @@ class ProjectionIntegrationTest {
                                 .forResource("testdata/TestComputationProvider.java");
 
                 Compilation compilation = Compiler.javac()
-                                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                                .withProcessors(new MetamodelProcessor())
                                 .compile(userEntity, addressEmbeddable, departmentEntity, orderEntity, userDTO,
                                                 orderDTO, computationProvider);
 
@@ -90,7 +90,7 @@ class ProjectionIntegrationTest {
                                 .forResource("testdata/TestComputationProvider.java");
 
                 Compilation compilation = Compiler.javac()
-                                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                                .withProcessors(new MetamodelProcessor())
                                 .compile(userEntity, addressEmbeddable, departmentEntity, orderEntity, userDTO,
                                                 orderDTO, computationProvider);
 
@@ -119,7 +119,7 @@ class ProjectionIntegrationTest {
                                 .forResource("testdata/TestComputationProvider.java");
 
                 Compilation compilation = Compiler.javac()
-                                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                                .withProcessors(new MetamodelProcessor())
                                 .compile(userEntity, addressEmbeddable, departmentEntity, orderEntity, orderSummaryDTO,
                                                 computationProvider);
 
@@ -143,7 +143,7 @@ class ProjectionIntegrationTest {
                                 .forResource("testdata/TestComputationProvider.java");
 
                 Compilation compilation = Compiler.javac()
-                                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                                .withProcessors(new MetamodelProcessor())
                                 .compile(userEntity, addressEmbeddable, departmentEntity, orderEntity, orderSummaryDTO,
                                                 computationProvider);
 
@@ -174,7 +174,7 @@ class ProjectionIntegrationTest {
                                 .forResource("testdata/TestComputationProvider.java");
 
                 Compilation compilation = Compiler.javac()
-                                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                                .withProcessors(new MetamodelProcessor())
                                 .compile(userEntity, addressEmbeddable, departmentEntity, orderEntity, userDTO,
                                                 orderSummaryDTO, orderDTO, computationProvider);
 
@@ -218,7 +218,7 @@ class ProjectionIntegrationTest {
                                 """);
 
                 Compilation compilation = Compiler.javac()
-                                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                                .withProcessors(new MetamodelProcessor())
                                 .compile(entity, dto);
 
                 assertThat(compilation).succeeded();
@@ -286,7 +286,7 @@ class ProjectionIntegrationTest {
                                 """);
 
                 Compilation compilation = Compiler.javac()
-                                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                                .withProcessors(new MetamodelProcessor())
                                 .compile(notNullAnnotation, statusEnum, entity, dto);
 
                 assertThat(compilation).succeeded();

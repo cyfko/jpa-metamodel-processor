@@ -1,4 +1,4 @@
-package io.github.cyfko.jpametamodel.util;
+package io.github.cyfko.jpametamodel.processor;
 
 import io.github.cyfko.jpametamodel.api.CollectionKind;
 import io.github.cyfko.jpametamodel.api.CollectionType;

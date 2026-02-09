@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test;
 
 import javax.tools.JavaFileObject;
 import java.io.IOException;
-import java.util.List;
 
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -163,7 +162,6 @@ class ReducersValidationTest {
 
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .withOptions(Shared.compilerOptions)
                 .compile(createCompanyEntity(), createDepartmentEntity(), createEmployeeEntity(),
                         createAddressEmbeddable(), createCompanyComputers(), dto);
 
@@ -189,7 +187,6 @@ class ReducersValidationTest {
 
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .withOptions(Shared.compilerOptions)
                 .compile(createCompanyEntity(), createDepartmentEntity(), createEmployeeEntity(),
                         createAddressEmbeddable(), createCompanyComputers(), dto);
 
@@ -219,7 +216,6 @@ class ReducersValidationTest {
 
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .withOptions(Shared.compilerOptions)
                 .compile(createCompanyEntity(), createDepartmentEntity(), createEmployeeEntity(),
                         createAddressEmbeddable(), createCompanyComputers(), dto);
 
@@ -248,7 +244,6 @@ class ReducersValidationTest {
 
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .withOptions(Shared.compilerOptions)
                 .compile(createCompanyEntity(), createDepartmentEntity(), createEmployeeEntity(),
                         createAddressEmbeddable(), createCompanyComputers(), dto);
 
@@ -274,7 +269,6 @@ class ReducersValidationTest {
 
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .withOptions(Shared.compilerOptions)
                 .compile(createCompanyEntity(), createDepartmentEntity(), createEmployeeEntity(),
                         createAddressEmbeddable(), createCompanyComputers(), dto);
 
@@ -305,7 +299,6 @@ class ReducersValidationTest {
 
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .withOptions(Shared.compilerOptions)
                 .compile(createCompanyEntity(), createDepartmentEntity(), createAddressEmbeddable(),
                         createCompanyComputers(), dto, createEmployeeEntity());
 
@@ -333,7 +326,6 @@ class ReducersValidationTest {
 
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .withOptions(Shared.compilerOptions)
                 .compile(createCompanyEntity(), createDepartmentEntity(), createAddressEmbeddable(),
                         createCompanyComputers(), dto, createEmployeeEntity());
 
@@ -373,7 +365,6 @@ class ReducersValidationTest {
 
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .withOptions(Shared.compilerOptions)
                 .compile(createCompanyEntity(), createDepartmentEntity(), createEmployeeEntity(),
                         createAddressEmbeddable(), createCompanyComputers(), dto);
 

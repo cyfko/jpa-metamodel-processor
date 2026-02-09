@@ -109,7 +109,7 @@ class ComputedCollectionErrorMessageTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(user, order, computer, dto);
 
         assertThat(compilation).failed();
@@ -159,8 +159,8 @@ class ComputedCollectionErrorMessageTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
-                .withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
+                
                 .compile(user, order, computer, dto);
 
         assertThat(compilation).failed();
@@ -209,7 +209,7 @@ class ComputedCollectionErrorMessageTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(user, order, computer, dto);
 
         assertThat(compilation).failed();
@@ -260,7 +260,7 @@ class ComputedCollectionErrorMessageTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(user, order, computer, dto);
 
         assertThat(compilation).failed();
@@ -305,7 +305,7 @@ class ComputedCollectionErrorMessageTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(user, order, computer, dto);
 
         assertThat(compilation).failed();
@@ -349,7 +349,7 @@ class ComputedCollectionErrorMessageTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(user, order, computer, dto);
 
         assertThat(compilation).failed();
@@ -397,7 +397,7 @@ class ComputedCollectionErrorMessageTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(user, order, computer, dto);
 
         assertThat(compilation).failed();
@@ -442,7 +442,7 @@ class ComputedCollectionErrorMessageTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(user, order, computer, dto);
 
         assertThat(compilation).failed();
@@ -521,7 +521,7 @@ class ComputedCollectionErrorMessageTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(user, department, computer, dto);
 
         assertThat(compilation).failed();
@@ -567,7 +567,7 @@ class ComputedCollectionErrorMessageTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(user, order, computer, dto);
 
         assertThat(compilation).failed();

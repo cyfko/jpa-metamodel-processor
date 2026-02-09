@@ -42,7 +42,7 @@ class ProjectionValidationTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(userEntity, invalidDTO);
 
         assertThat(compilation).failed();
@@ -79,7 +79,7 @@ class ProjectionValidationTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(userEntity, invalidDTO);
 
         assertThat(compilation).failed();
@@ -118,7 +118,7 @@ class ProjectionValidationTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(userEntity, invalidDTO);
 
         assertThat(compilation).failed();
@@ -141,7 +141,7 @@ class ProjectionValidationTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(invalidDTO);
 
         assertThat(compilation).failed();
@@ -195,7 +195,7 @@ class ProjectionValidationTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(userEntity, addressEmbeddable, validDTO);
 
         assertThat(compilation).succeeded();

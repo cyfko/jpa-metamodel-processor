@@ -49,7 +49,7 @@ class EmptyProjectionDTOTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(user, dto);
 
         // Compilation should succeed
@@ -86,7 +86,7 @@ class EmptyProjectionDTOTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(user, dto);
 
         assertThat(compilation).succeeded();
@@ -136,7 +136,7 @@ class EmptyProjectionDTOTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(user, dto);
 
         assertThat(compilation).succeeded();

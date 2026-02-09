@@ -52,7 +52,7 @@ public class EntityProcessorTest {
                 """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, role, dtoclass);
 
         assertThat(compilation).succeeded();
@@ -146,7 +146,7 @@ public class EntityProcessorTest {
                 """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(baseEntity, entityKey, concreteEntity, dtoclass);
 
         assertThat(compilation).succeeded();
@@ -210,7 +210,7 @@ public class EntityProcessorTest {
                 """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entityKey, concreteEntity, dtoclass);
 
         assertThat(compilation).failed();
@@ -256,7 +256,7 @@ public class EntityProcessorTest {
                 """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entityKey, concreteEntity, dtoclass);
 
         assertThat(compilation).failed();
@@ -334,7 +334,7 @@ public class EntityProcessorTest {
                 """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(idClass, orderEntity, productEntity, orderItemEntity, dtoclass);
 
         assertThat(compilation).succeeded();
@@ -414,7 +414,7 @@ public class EntityProcessorTest {
                 """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(base, subclass, dtoclass);
 
         assertThat(compilation).succeeded();
@@ -467,7 +467,7 @@ public class EntityProcessorTest {
                 """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, dtoclass);
 
         assertThat(compilation).succeeded();
@@ -500,7 +500,7 @@ public class EntityProcessorTest {
                 """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, dtoclass);
 
         assertThat(compilation).succeeded();
@@ -549,7 +549,7 @@ public class EntityProcessorTest {
                 """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(customer, order, dtoclass);
 
         assertThat(compilation).succeeded();
@@ -678,7 +678,7 @@ public class EntityProcessorTest {
                 """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(address, customer, product, order, orderItem, dtoclass);
 
         assertThat(compilation).succeeded();
@@ -786,7 +786,7 @@ public class EntityProcessorTest {
                 """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(address, customer, dtoclass);
 
         assertThat(compilation).succeeded();
@@ -884,7 +884,7 @@ public class EntityProcessorTest {
                 """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(book, author, dtoclass);
 
         assertThat(compilation).succeeded();
@@ -978,7 +978,7 @@ public class EntityProcessorTest {
                 """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(status, entity, dtoclass);
 
         assertThat(compilation).succeeded();
@@ -1043,7 +1043,7 @@ public class EntityProcessorTest {
                 """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, dtoclass);
 
         assertThat(compilation).succeeded();
@@ -1099,7 +1099,7 @@ public class EntityProcessorTest {
                 """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, dtoclass);
 
         assertThat(compilation).succeeded();
@@ -1180,7 +1180,7 @@ public class EntityProcessorTest {
                 """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(notNullAnnotation, statusEnum, entity, dtoclass);
 
         assertThat(compilation).succeeded();

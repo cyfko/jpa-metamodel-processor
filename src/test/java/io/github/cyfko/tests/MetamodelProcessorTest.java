@@ -26,7 +26,6 @@ class MetamodelProcessorTest {
 
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .withOptions(Shared.compilerOptions)
                 .compile(userEntity, addressEmbeddable, departmentEntity, orderEntity, userDTO, orderDTO, computationProvider);
 
         assertThat(compilation).succeeded();
@@ -47,7 +46,6 @@ class MetamodelProcessorTest {
 
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .withOptions(Shared.compilerOptions)
                 .compile(userEntity, addressEmbeddable, departmentEntity, orderEntity, userDTO, orderDTO, orderSummaryDTO, computationProvider);
 
         assertThat(compilation).succeeded();
@@ -75,7 +73,6 @@ class MetamodelProcessorTest {
 
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .withOptions(Shared.compilerOptions)
                 .compile(userEntity, addressEmbeddable, departmentEntity, orderEntity, userDTO, orderDTO, computationProvider);
 
         assertThat(compilation).succeeded();
@@ -104,7 +101,6 @@ class MetamodelProcessorTest {
 
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .withOptions(Shared.compilerOptions)
                 .compile(userEntity, addressEmbeddable, departmentEntity, orderEntity, userDTO, orderDTO, orderSummaryDTO, computationProvider);
 
         assertThat(compilation).succeeded();
@@ -134,7 +130,6 @@ class MetamodelProcessorTest {
 
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .withOptions(Shared.compilerOptions)
                 .compile(userEntity, addressEmbeddable, departmentEntity, orderEntity, userDTO, orderDTO, computationProvider);
 
         assertThat(compilation).succeeded();

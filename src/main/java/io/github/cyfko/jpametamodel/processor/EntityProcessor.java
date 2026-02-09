@@ -5,22 +5,18 @@ import io.github.cyfko.jpametamodel.api.CollectionMetadata;
 import io.github.cyfko.jpametamodel.api.CollectionType;
 import io.github.cyfko.jpametamodel.api.PersistenceMetadata;
 import io.github.cyfko.jpametamodel.providers.PersistenceRegistryProvider;
-import io.github.cyfko.jpametamodel.providers.ProjectionRegistryProvider;
-import io.github.cyfko.jpametamodel.util.AnnotationProcessorUtils;
 
 import javax.annotation.processing.*;
 import javax.lang.model.element.*;
 import javax.lang.model.type.*;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
-import javax.tools.FileObject;
 import javax.tools.JavaFileObject;
-import javax.tools.StandardLocation;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.*;
 
-import static io.github.cyfko.jpametamodel.util.AnnotationProcessorUtils.BASIC_JPA_TYPES;
+import static io.github.cyfko.jpametamodel.processor.AnnotationProcessorUtils.BASIC_JPA_TYPES;
 
 /**
  * Processor responsible for scanning JPA entities and embeddables during

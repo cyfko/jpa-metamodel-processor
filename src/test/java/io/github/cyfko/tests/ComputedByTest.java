@@ -56,7 +56,7 @@ class ComputedByTest {
             }
             """
         );
-        Compilation compilation = Compiler.javac().withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions).compile(entity, external, dto);
+        Compilation compilation = Compiler.javac().withProcessors(new MetamodelProcessor()).compile(entity, external, dto);
         assertThat(compilation).succeeded();
     }
 
@@ -103,7 +103,7 @@ class ComputedByTest {
             }
             """
         );
-        Compilation compilation = Compiler.javac().withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions).compile(entity, provider, dto);
+        Compilation compilation = Compiler.javac().withProcessors(new MetamodelProcessor()).compile(entity, provider, dto);
         assertThat(compilation).succeeded();
         // If compilation succeeds, computedBy resolved correctly
     }
@@ -137,7 +137,7 @@ class ComputedByTest {
             }
             """
         );
-        Compilation compilation = Compiler.javac().withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions).compile(entity, provider, dto);
+        Compilation compilation = Compiler.javac().withProcessors(new MetamodelProcessor()).compile(entity, provider, dto);
         assertThat(compilation).succeeded();
     }
 
@@ -170,7 +170,7 @@ class ComputedByTest {
             }
             """
         );
-        Compilation compilation = Compiler.javac().withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions).compile(entity, provider, dto);
+        Compilation compilation = Compiler.javac().withProcessors(new MetamodelProcessor()).compile(entity, provider, dto);
         assertThat(compilation).succeeded();
     }
 
@@ -203,7 +203,7 @@ class ComputedByTest {
             }
             """
         );
-        Compilation compilation = Compiler.javac().withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions).compile(entity, provider, dto);
+        Compilation compilation = Compiler.javac().withProcessors(new MetamodelProcessor()).compile(entity, provider, dto);
         assertThat(compilation).failed();
         assertThat(compilation).hadErrorContaining("doesNotExist");
     }

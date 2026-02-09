@@ -1,13 +1,13 @@
-# Projection Metamodel Processor
+# JPA Metamodel Processor
 
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.cyfko/jpa-metamodel-processor)](https://search.maven.org/artifact/io.github.cyfko/jpa-metamodel-processor)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-**Projection Metamodel Processor** is a Java annotation processor of the [Projection Specification](https://github.com/cyfko/projection-spec/tree/main) that generates a compile-time type-safe metadata registry for JPA entities and their DTO projections. It automatically extracts structural information from entities (fields, identifiers, relationships, collections) and enables declarative mapping definitions between entities and DTOs with support for computed fields.
+**JPA Metamodel Processor** is a Java annotation processor that automatically generates type-safe metadata registries for JPA entities and their DTO projections, in accordance with the [Projection Specification](https://github.com/cyfko/projection-spec/tree/main).
 
 ## 🎯 Goals
 
-This project provides:
+This processor provides:
 
 - **Automatic JPA metadata extraction**: Analyzes entities and embeddables to build a compile-time metadata registry
 - **DTO projection management**: Declarative mapping definitions between JPA entities and DTOs with compile-time validation
@@ -19,6 +19,7 @@ This project provides:
 - **Java 21+**
 - **Maven 3.6+**
 - **Jakarta Persistence API 3.1.0+**
+- **jpa-projection-metamodel** (required dependency)
 
 ## 🚀 Installation
 
@@ -30,367 +31,336 @@ Add the following dependency to your `pom.xml`:
 <dependency>
     <groupId>io.github.cyfko</groupId>
     <artifactId>jpa-metamodel-processor</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.3</version>
+    <scope>provided</scope>
 </dependency>
 ```
 
 The annotation processor will be automatically detected and executed during compilation thanks to `auto-service`.
 
-## 📖 Usage Guide
-
-### 1. Define Your JPA Entities
-
-The processor analyzes only the `@Entity` and `@Embeddable` classes referenced by the `from` attribute of your `@Projection` annotations (and their related embeddables):
-
-```java
-@Entity
-@Table(name = "users")
-public class User {
-    
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    
-    private String firstName;
-    private String lastName;
-    private String email;
-    private LocalDate birthDate;
-    
-    @Embedded
-    private Address address;
-    
-    @ManyToOne
-    private Department department;
-    
-    @OneToMany(mappedBy = "user")
-    private List<Order> orders;
-    
-    // Getters and setters...
-}
-```
-
-### 2. Create DTO Projections
-
-Use the `@Projection`, `@Projected`, and `@Computed` annotations to define your DTOs:
-
-```java
-@Projection(
-    from = User.class,
-    providers = {
-        @Provider(value = UserComputations.class)
-    }
-)
-public class UserDTO {
-    
-    // Direct mapping with field renaming
-    @Projected(from = "email")
-    private String userEmail;
-    
-    // Nested path to an embeddable field
-    @Projected(from = "address.city")
-    private String city;
-    
-    // Nested path to a relationship
-    @Projected(from = "department.name")
-    private String departmentName;
-    
-    // Collection
-    @Projected(from = "orders")
-    private List<OrderDTO> orders;
-    
-    // Computed field depending on multiple fields
-    @Computed(dependsOn = {"firstName", "lastName"})
-    private String fullName;
-    
-    // Computed field depending on a single field
-    @Computed(dependsOn = {"birthDate"})
-    private Integer age;
-    
-    // Getters and setters...
-}
-```
-
-**Note:**
-- Only entities referenced in the `from` attribute of `@Projection` are scanned for projection purposes.
-- All fields in a class annotated with `@Projection` are implicitly considered as if annotated with `@Projected`, unless explicitly annotated otherwise.
-- **Empty projections:** A `@Projection` with no fields is valid and still registers the target entity in `PersistenceRegistry`. This can be useful as a base class for inheritance or to force registration of specific entities.
-
-
-### 3. Define Computation Providers and External Methods
-
-Create classes containing computation methods for your `@Computed` fields. Methods can be:
-
-- **In a declared provider** (via `@Provider`)
-- **Or in any external class** accessible via `@MethodReference(type = ...)`, even if this class is not listed in the providers
-
-Standard provider example:
-```java
-public class UserComputations {
-    // Static method for fullName
-    public static String getFullName(String firstName, String lastName) {
-        return firstName + " " + lastName;
-    }
-    // Instance method for age (can be a Spring bean)
-    public Integer getAge(LocalDate birthDate) {
-        return Period.between(birthDate, LocalDate.now()).getYears();
-    }
-}
-```
-
-Advanced example: external static method not declared as a provider
-```java
-public class ExternalComputer {
-    public static String joinNames(String first, String last) {
-        return first + ":" + last;
-    }
-}
-
-@Projection(from = User.class)
-public class UserDTO {
-    @Computed(dependsOn = {"firstName", "lastName"}, computedBy = @MethodReference(type = ExternalComputer.class, method = "joinNames"))
-    private String displayName;
-}
-```
-
-**Resolution behavior:**
-- If `@MethodReference(type = ...)` is used, the method is searched in the specified class, even if it is not a provider.
-- Compilation fails if the method does not exist or the signature does not match.
-- Project tests validate this behavior to guarantee the expected flexibility.
-
-**Naming convention:** Methods in providers should follow the pattern `get[FieldName]` (DTO field name with the first letter capitalized), unless an explicit method is referenced via `@MethodReference`.
-
-### 4. Use Registries at Runtime
-
-#### Access Entity Metadata
-
-```java
-import io.github.cyfko.jpametamodel.PersistenceRegistry;
-
-// Check if an entity is registered
-boolean isRegistered = PersistenceRegistry.isEntityRegistered(User.class);
-
-        // Get metadata for an entity
-        Map<String, PersistenceMetadata> metadata = PersistenceRegistry.getMetadataFor(User.class);
-
-        // Get metadata for a specific field
-        PersistenceMetadata fieldMeta = PersistenceRegistry.getFieldMetadata(User.class, "email");
-
-        // Get ID fields of an entity
-        List<String> idFields = PersistenceRegistry.getIdFields(User.class);
-```
-
-#### Access Projection Metadata
-
-```java
-import io.github.cyfko.jpametamodel.ProjectionRegistry;
-
-// Get metadata for a projection
-ProjectionMetadata projectionMeta = ProjectionRegistry.getMetadataFor(UserDTO.class);
-
-        // Check if a projection exists
-        boolean hasProjection = ProjectionRegistry.hasProjection(UserDTO.class);
-
-        // Get required entity fields for a projection
-        List<String> requiredFields = ProjectionRegistry.getRequiredEntityFields(UserDTO.class);
-
-        // Convert a DTO path to an entity path
-        String entityPath = ProjectionRegistry.toEntityPath("userEmail", UserDTO.class, false);
-// Returns: "email"
-
-        String nestedPath = ProjectionRegistry.toEntityPath("city", UserDTO.class, false);
-// Returns: "address.city"
-```
-
-## 💡 Use Cases
-
-- **REST API with Projections:** Dynamically build JPA queries based on fields requested by the client.
-- **Filter Schema Validation:** Validate that fields used in filters exist in entities.
-- **API Documentation Generation:** Automatically generate OpenAPI/Swagger documentation from metadata.
-- **Query Optimization:** Build JPA queries that only load fields necessary for a given projection.
-
-## 🔧 Advanced Features
-
-### Collection Support
-
-The processor automatically detects collections and extracts their metadata:
-
-```java
-@Projection(from = User.class)
-public class UserDTO {
-    
-    @Projected(from = "orders")
-    private List<OrderDTO> orders;  // Entity collection
-    
-    @Projected(from = "tags")
-    private Set<String> tags;  // Element collection
-}
-```
-
-### Computation Providers with Dependency Injection
-
-You can use Spring beans for computation providers:
-
-```java
-@Projection(
-    from = User.class,
-    providers = {
-        @Provider(value = DateFormatter.class, bean = "isoDateFormatter")
-    }
-)
-public class UserDTO {
-    @Computed(dependsOn = {"createdAt"})
-    private String formattedDate;
-}
-
-@Service("isoDateFormatter")
-public class DateFormatter {
-    public String getFormattedDate(LocalDateTime createdAt) {
-        return createdAt.format(DateTimeFormatter.ISO_DATE);
-    }
-}
-```
-
-### Complex Nested Paths
-
-Support for deep paths in entity hierarchy:
-
-```java
-@Projected(from = "department.manager.address.city")
-private String managerCity;
-```
+> **Note:** This module requires `jpa-projection-metamodel` as a dependency. Make sure you have it in your dependencies as well.
 
 ## 🏗️ Architecture
 
 The processor works in two phases:
 
-1. **Phase 1 - Entity Processing**: Analyzes all `@Entity` and `@Embeddable` classes, extracts their metadata, and generates `PersistenceMetadataRegistryProviderImpl`
-2. **Phase 2 - Projection Processing**: Analyzes all `@Projection` classes, validates mappings against entity metadata, and generates `ProjectionMetadataRegistryProviderImpl`
+### Phase 1 - Entity Processing
+
+- Analyzes all `@Entity` and `@Embeddable` classes referenced by the `from` attribute of your `@Projection` annotations (and their related embeddables)
+- Extracts their metadata (fields, identifiers, relationships, collections)
+- Generates `PersistenceMetadataRegistryProviderImpl`
+
+### Phase 2 - Projection Processing
+
+- Analyzes all `@Projection` classes
+- Validates mappings against entity metadata
+- Resolves computation methods
+- Generates `ProjectionMetadataRegistryProviderImpl`
 
 The generated registries are immutable and thread-safe, accessible via the utility classes `PersistenceRegistry` and `ProjectionRegistry`.
 
-## 📝 Annotations
+## 🔍 Detailed Features
 
-Annotation described here is a reminder of the [Projection Specification](https://github.com/cyfko/projection-spec/tree/main)
+### Automatic JPA Metadata Detection
 
-### `@Projection`
+The processor automatically detects and extracts:
 
-Class-level annotation that declares a DTO projection.
+- **Identifiers**: Fields annotated with `@Id` (simple or composite with `@IdClass` or `@EmbeddedId`)
+- **Embeddable fields**: `@Embeddable` classes and their fields
+- **Relationships**: `@ManyToOne`, `@OneToOne`, `@OneToMany`, `@ManyToMany`
+- **Collections**: `@ElementCollection` and entity collections
+- **Exclusions**: `@Transient` fields are automatically excluded from analysis
 
-**Parameters:**
-- `from`: The source JPA entity class (required)
-- `providers`: Array of computation providers (optional)
+### Strict Compile-Time Validation
 
-### `@Projected`
+The processor performs comprehensive validation:
 
-Field-level annotation to map a DTO field to an entity field.
+- **Field existence**: Verifies that all paths specified in `@Projected(from = "...")` exist in the entity
+- **Type consistency**: Ensures that types match between DTO fields and entity fields
+- **Computation methods**: Checks the existence and signature of referenced methods
+- **Collection reducers**: Validates the presence of reducers for any dependency traversing a collection
+- **Fail fast**: Compilation fails immediately on error, avoiding runtime errors
 
-**Parameters:**
-- `from`: The path to the entity field (optional, uses DTO field name by default)
+### Flexible Computation Method Resolution
 
-### `@Computed`
+The processor supports multiple resolution modes:
 
-Field-level annotation to declare a computed field.
+#### 1. Naming Convention in Providers
 
-**Parameters:**
-- `dependsOn`: Array of paths to entity fields required for computation
-- `reducers`: Array of reducer names for collection dependencies (e.g., `"SUM"`, `"AVG"`, `"COUNT"`, `"MIN"`, `"MAX"`)
-- `computedBy`: Optional `@MethodReference` to specify the computation method
+```java
+@Projection(from = User.class, providers = @Provider(UserComputations.class))
+public class UserDTO {
+    @Computed(dependsOn = {"firstName", "lastName"})
+    private String fullName;
+}
 
-**Reducers for Collection Dependencies:**
+public class UserComputations {
+    // Convention: get[FieldName]
+    public static String getFullName(String firstName, String lastName) {
+        return firstName + " " + lastName;
+    }
+}
+```
 
-When a dependency traverses a collection (e.g., `orders.total`), a **reducer is mandatory** to specify how to aggregate the values:
+#### 2. Explicit Reference via @MethodReference
+
+```java
+@Projection(from = User.class)
+public class UserDTO {
+    @Computed(
+        dependsOn = {"firstName", "lastName"}, 
+        computedBy = @MethodReference(type = ExternalComputer.class, method = "joinNames")
+    )
+    private String displayName;
+}
+
+public class ExternalComputer {
+    public static String joinNames(String first, String last) {
+        return first + ":" + last;
+    }
+}
+```
+
+#### 3. Static and Instance Methods
+
+The processor supports both types of methods:
+
+```java
+public class Computations {
+    // Static method
+    public static String staticMethod(String arg) { ... }
+    
+    // Instance method (can be a Spring bean)
+    public String instanceMethod(String arg) { ... }
+}
+```
+
+#### Strict Validation
+
+- Compilation **fails** if the method does not exist
+- Compilation **fails** if the signature does not match (different number or types of parameters than `dependsOn`)
+- Compilation **fails** if the referenced class is not accessible
+
+### Collection Reducer Support
+
+When a dependency traverses a collection, a reducer is mandatory:
 
 ```java
 @Projection(from = Company.class, providers = @Provider(CompanyComputers.class))
 public class CompanyDTO {
-    // Single collection dependency with SUM reducer
+    // Collection dependency → reducer required
     @Computed(dependsOn = {"orders.amount"}, reducers = {"SUM"})
     private BigDecimal totalRevenue;
+}
+```
+
+The processor validates:
+- That a reducer is provided for each collection dependency
+- That the number of reducers matches the number of collection dependencies
+- That reducers use valid values (`SUM`, `AVG`, `COUNT`, etc.)
+
+## 📁 Generated Files
+
+Generated classes are located in `target/generated-sources/annotations/`:
+
+```
+target/generated-sources/annotations/
+└── io/github/cyfko/jpametamodel/providers/impl/
+    ├── PersistenceMetadataRegistryProviderImpl.java
+    └── ProjectionMetadataRegistryProviderImpl.java
+```
+
+These classes are automatically compiled and packaged with your application.
+
+## ⚙️ Configuration and Customization
+
+### Disable the Processor
+
+If necessary, you can disable the processor:
+
+```xml
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-compiler-plugin</artifactId>
+    <configuration>
+        <proc>none</proc>
+    </configuration>
+</plugin>
+```
+
+### Enable Debug Logging
+
+To see processing details:
+
+```xml
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-compiler-plugin</artifactId>
+    <configuration>
+        <compilerArgs>
+            <arg>-Averbose=true</arg>
+        </compilerArgs>
+    </configuration>
+</plugin>
+```
+
+## 🔧 Usage Examples
+
+### Complete Example
+
+```java
+// 1. JPA Entity
+@Entity
+public class User {
+    @Id
+    private Long id;
+    private String firstName;
+    private String lastName;
+    private LocalDate birthDate;
     
-    // Multiple collection dependencies with different reducers
-    @Computed(
-        dependsOn = {"orders.amount", "orders.items.quantity"},
-        reducers = {"SUM", "COUNT"}
-    )
-    private Object orderStats;
+    @Embedded
+    private Address address;
     
-    // Mixed: scalar + collection (only collection needs reducer)
-    @Computed(dependsOn = {"name", "orders.amount"}, reducers = {"AVG"})
-    private String summary;
+    @OneToMany(mappedBy = "user")
+    private List<Order> orders;
+}
+
+// 2. Computation Provider
+public class UserComputations {
+    public static String getFullName(String firstName, String lastName) {
+        return firstName + " " + lastName;
+    }
+    
+    public Integer getAge(LocalDate birthDate) {
+        return Period.between(birthDate, LocalDate.now()).getYears();
+    }
+}
+
+// 3. DTO Projection
+@Projection(from = User.class, providers = @Provider(UserComputations.class))
+public class UserDTO {
+    @Projected(from = "firstName")
+    private String firstName;
+    
+    @Projected(from = "address.city")
+    private String city;
+    
+    @Computed(dependsOn = {"firstName", "lastName"})
+    private String fullName;
+    
+    @Computed(dependsOn = {"birthDate"})
+    private Integer age;
+    
+    @Computed(dependsOn = {"orders.total"}, reducers = {"SUM"})
+    private BigDecimal totalSpent;
 }
 ```
 
-**Available Reducers:** `SUM`, `AVG`, `COUNT`, `COUNT_DISTINCT`, `MIN`, `MAX`
-
-**Runtime API:**
+### Runtime Usage
 
 ```java
-ComputedField field = ...;
-for (ComputedField.ReducerMapping rm : field.reducers()) {
-    String dependency = field.dependencies()[rm.dependencyIndex()];
-    String reducer = rm.reducer();
-    // "orders.amount" → "SUM"
-}
+// Registries are automatically available
+ProjectionMetadata meta = ProjectionRegistry.getMetadataFor(UserDTO.class);
+List<String> requiredFields = ProjectionRegistry.getRequiredEntityFields(UserDTO.class);
+// ["firstName", "lastName", "birthDate", "address.city", "orders.total"]
 ```
-
-### `@Provider`
-
-Annotation to declare a computation provider.
-
-**Parameters:**
-- `value`: The provider class (required)
-- `bean`: The bean name for dependency injection (optional)
-
-## 📦 Java Modules (JPMS) Configuration
-
-If your project uses the Java Platform Module System (i.e., you have a `module-info.java` file), you must follow these specific steps to allow the library to discover the generated metamodel code.
-
-> **Note:** If you are not using Java Modules (e.g., a standard Spring Boot application without `module-info.java`), you can **skip this section**.
-
-### 1. Update `module-info.java`
-
-You need to authorize the library to access the generated implementation via reflection. Add the following directives to your module descriptor:
-
-```java
-module com.mycompany.myproject {
-    // 1. Require the library
-    requires io.github.cyfko.jpametamodel;
-
-    // 2. Open the generated package to the library
-    // This allows the PersistenceRegistry to instantiate the generated provider via reflection.
-    opens io.github.cyfko.jpametamodel.providers.impl to io.github.cyfko.jpametamodel;
-}
-```
-
-### 2. Create a "Placeholder" Package File (Crucial)
-Since the `io.github.cyfko.jpametamodel.providers.impl` package is populated only after the annotation processor runs, 
-the Java compiler might throw a "package does not exist" error when processing the opens directive in step 1.
-
-To fix this, you must explicitly create the package structure in your source tree with a placeholder file.
-
-**Create the following file**: 
-`src/main/java/io/github/cyfko/jpametamodel/providers/impl/package-info.java`
-
-With this content:
-```java
-/**
- * Placeholder package to ensure the package exists at compile-time 
- * for JPMS 'opens' directive compatibility.
- */
-package io.github.cyfko.jpametamodel.providers.impl;
-```
-
-This ensures the package technically exists before compilation starts, satisfying the strict module checks.
 
 ## ⚠️ Limitations
 
-- Entity classes must be public
-- `@Transient` fields are excluded from analysis
-- Computation providers must follow the `get[FieldName]` naming convention
+- **Visibility**: Entity classes must be public
+- **Transient fields**: `@Transient` fields are excluded from analysis
+- **Naming convention**: Providers must follow the `get[FieldName]` convention (except with `@MethodReference`)
+- **Processing scope**: Only entities referenced in the `from` attribute of `@Projection` are analyzed
+
+## 🔧 Troubleshooting
+
+### The Processor Doesn't Run
+
+**Check that:**
+- `jpa-projection-metamodel` is in your dependencies (scope `compile`)
+- `jpa-metamodel-processor` is in your dependencies (scope `provided` or `compile`)
+- You haven't disabled processors with `<proc>none</proc>`
+- The JAR file contains the `META-INF/services/javax.annotation.processing.Processor` file
+
+**Diagnosis:**
+```bash
+mvn clean compile -X | grep "Annotation processor"
+```
+
+### "Package does not exist" Error (JPMS)
+
+If you are using Java Modules (`module-info.java`), create the placeholder file:
+
+`src/main/java/io/github/cyfko/jpametamodel/providers/impl/package-info.java`
+
+See the JPMS section in the `jpa-projection-metamodel` README.
+
+### "Method not found for computed field" Error
+
+**Check that:**
+- The method name follows `get[FieldName]` OR is explicitly referenced via `@MethodReference`
+- The signature matches: the number and types of parameters exactly match `dependsOn`
+- The provider class is accessible (public and in the compilation classpath)
+- If you use `@MethodReference`, verify that `type` and `method` are correct
+
+**Common error example:**
+```java
+@Computed(dependsOn = {"firstName", "lastName"})  // 2 String parameters
+private String fullName;
+
+// ❌ ERROR - wrong signature (only 1 parameter)
+public static String getFullName(String name) { ... }
+
+// ✅ CORRECT
+public static String getFullName(String firstName, String lastName) { ... }
+```
+
+### "Missing reducer for collection dependency" Error
+
+When a dependency traverses a collection, a reducer is mandatory:
+
+```java
+// ❌ ERROR - no reducer for "orders.amount"
+@Computed(dependsOn = {"orders.amount"})
+private BigDecimal total;
+
+// ✅ CORRECT
+@Computed(dependsOn = {"orders.amount"}, reducers = {"SUM"})
+private BigDecimal total;
+```
+
+### Generated Classes Not Found
+
+**Check that:**
+- The `target/generated-sources/annotations/` folder is marked as source in your IDE
+- You have performed a complete compilation (`mvn clean compile`)
+- Generated classes are present in the final JAR
+
+**For IntelliJ IDEA:**
+1. File → Project Structure → Modules
+2. Verify that `target/generated-sources/annotations` is marked as "Sources"
+
+**For Eclipse:**
+1. Project Properties → Java Build Path → Source
+2. Add `target/generated-sources/annotations` if necessary
 
 ## 🤝 Contributing
 
 Contributions are welcome! Please open an issue to discuss major changes before submitting a pull request.
+
+### Local Development
+
+```bash
+# Clone the repository
+git clone https://github.com/cyfko/jpa-metamodel-processor.git
+cd jpa-metamodel-processor
+
+# Build and test
+mvn clean install
+
+# Run tests
+mvn test
+```
 
 ## 📄 License
 
@@ -408,3 +378,5 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 - [GitHub Repository](https://github.com/cyfko/jpa-metamodel-processor)
 - [Issue Tracker](https://github.com/cyfko/jpa-metamodel-processor/issues)
 - [Maven Central](https://search.maven.org/artifact/io.github.cyfko/jpa-metamodel-processor)
+- [jpa-projection-metamodel](https://github.com/cyfko/jpa-projection-metamodel)
+- [Projection Specification](https://github.com/cyfko/projection-spec)

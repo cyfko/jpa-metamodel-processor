@@ -124,7 +124,7 @@ class ComputationProviderTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, computer, dto);
 
         assertThat(compilation).failed();
@@ -149,7 +149,7 @@ class ComputationProviderTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, dto);
 
         assertThat(compilation).failed();
@@ -192,7 +192,7 @@ class ComputationProviderTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, computer, dto);
 
         assertThat(compilation).failed();
@@ -233,7 +233,7 @@ class ComputationProviderTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, computer, dto);
 
         assertThat(compilation).failed();
@@ -277,7 +277,7 @@ class ComputationProviderTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, computer, dto);
 
         assertThat(compilation).failed();
@@ -319,7 +319,7 @@ class ComputationProviderTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, computer, dto);
 
         assertThat(compilation).failed();
@@ -364,7 +364,7 @@ class ComputationProviderTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, computer, dto);
 
         assertThat(compilation).failed();
@@ -406,7 +406,7 @@ class ComputationProviderTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, computer, dto);
 
         assertThat(compilation).failed();
@@ -448,7 +448,7 @@ class ComputationProviderTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, computer, dto);
 
         assertThat(compilation).failed();
@@ -492,7 +492,7 @@ class ComputationProviderTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, computer, dto);
 
         assertThat(compilation).failed();
@@ -534,7 +534,7 @@ class ComputationProviderTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, computer, dto);
 
         assertThat(compilation).succeeded();
@@ -574,7 +574,7 @@ class ComputationProviderTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, computer, dto);
 
         // This should not succeed even if Integer and int are compatible in JPA context
@@ -635,7 +635,7 @@ class ComputationProviderTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, computer1, computer2, dto);
 
         assertThat(compilation).succeeded();
@@ -692,7 +692,7 @@ class ComputationProviderTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, computer1, computer2, dto);
 
         assertThat(compilation).succeeded();
@@ -734,7 +734,7 @@ class ComputationProviderTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, computer, dto);
 
         assertThat(compilation).succeeded();
@@ -774,7 +774,7 @@ class ComputationProviderTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, computer, dto);
 
         assertThat(compilation).succeeded();
@@ -814,7 +814,7 @@ class ComputationProviderTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, computer, dto);
 
         assertThat(compilation).succeeded();
@@ -855,7 +855,7 @@ class ComputationProviderTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, computer, dto);
 
         assertThat(compilation).succeeded();
@@ -905,7 +905,7 @@ class ComputationProviderTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, computer, dto);
 
         assertThat(compilation).succeeded();
@@ -963,7 +963,7 @@ class ComputationProviderTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, computer1, computer2, dto);
 
         assertThat(compilation).succeeded();
@@ -1005,7 +1005,7 @@ class ComputationProviderTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, computer, dto);
 
         assertThat(compilation).succeeded();
@@ -1046,7 +1046,7 @@ class ComputationProviderTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, computer, dto);
 
         assertThat(compilation).succeeded();
@@ -1087,7 +1087,7 @@ class ComputationProviderTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, computer, dto);
 
         assertThat(compilation).succeeded();
@@ -1114,7 +1114,7 @@ class ComputationProviderTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, dto);
 
         assertThat(compilation).failed();
@@ -1145,7 +1145,7 @@ class ComputationProviderTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, dto);
 
         assertThat(compilation).failed();
@@ -1188,7 +1188,7 @@ class ComputationProviderTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, computer, dto);
 
         assertThat(compilation).succeeded();
@@ -1241,7 +1241,7 @@ class ComputationProviderTest {
                         """);
 
         Compilation compilation = Compiler.javac()
-                .withProcessors(new MetamodelProcessor()).withOptions(Shared.compilerOptions)
+                .withProcessors(new MetamodelProcessor())
                 .compile(entity, computer, dto);
 
         assertThat(compilation).succeeded();

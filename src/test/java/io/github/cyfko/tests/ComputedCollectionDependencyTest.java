@@ -185,7 +185,6 @@ class ComputedCollectionDependencyTest {
 
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .withOptions(Shared.compilerOptions)
                 .compile(user, order, orderItem, department, company, computer, dto);
 
         assertThat(compilation).succeeded();
@@ -233,7 +232,6 @@ class ComputedCollectionDependencyTest {
 
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .withOptions(Shared.compilerOptions)
                 .compile(user, order, orderItem, department, company, computer, dto);
 
         assertThat(compilation).succeeded();
@@ -281,7 +279,6 @@ class ComputedCollectionDependencyTest {
 
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .withOptions(Shared.compilerOptions)
                 .compile(user, order, orderItem, department, company, computer, dto);
 
         assertThat(compilation).succeeded();
@@ -332,7 +329,6 @@ class ComputedCollectionDependencyTest {
 
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .withOptions(Shared.compilerOptions)
                 .compile(user, order, orderItem, department, company, computer, dto);
 
         assertThat(compilation).succeeded();
@@ -380,7 +376,6 @@ class ComputedCollectionDependencyTest {
 
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .withOptions(Shared.compilerOptions)
                 .compile(user, order, orderItem, department, company, computer, dto);
 
         assertThat(compilation).succeeded();
@@ -429,7 +424,6 @@ class ComputedCollectionDependencyTest {
 
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .withOptions(Shared.compilerOptions)
                 .compile(user, order, orderItem, department, company, computer, dto);
 
         assertThat(compilation).succeeded();
@@ -478,7 +472,6 @@ class ComputedCollectionDependencyTest {
 
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .withOptions(Shared.compilerOptions)
                 .compile(user, order, orderItem, department, company, computer, dto);
 
         assertThat(compilation).failed();
@@ -527,7 +520,6 @@ class ComputedCollectionDependencyTest {
 
         Compilation compilation = Compiler.javac()
                 .withProcessors(new MetamodelProcessor())
-                .withOptions(Shared.compilerOptions)
                 .compile(user, order, orderItem, department, company, computer, dto);
 
         assertThat(compilation).failed();

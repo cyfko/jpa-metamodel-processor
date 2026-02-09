@@ -33,7 +33,6 @@
         <connection>scm:git:git://github.com/cyfko/jpa-metamodel-processor.git</connection>
         <developerConnection>scm:git:git@github.com:cyfko/jpa-metamodel-processor.git</developerConnection>
         <url>https://github.com/cyfko/jpa-metamodel-processor/tree/main</url>
-        <tag>v1.0.0</tag>
     </scm>
 
     <issueManagement>
@@ -42,7 +41,7 @@
     </issueManagement>
 
     <properties>
-        <!-- Java Version - IMPORTANT: Change to 21 as you're using Java 21 features -->
+        <!-- Java Version -->
         <java.version>21</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
@@ -53,6 +52,7 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
         <!-- Dependencies Versions -->
+        <projection-metamodel.version>1.0.0</projection-metamodel.version>
         <auto-service.version>1.1.1</auto-service.version>
         <jakarta-persistence.version>3.1.0</jakarta-persistence.version>
         <junit.version>5.10.3</junit.version>
@@ -74,8 +74,8 @@
         <!-- Projection specification -->
         <dependency>
             <groupId>io.github.cyfko</groupId>
-            <artifactId>projection-spec</artifactId>
-            <version>1.0.0</version>
+            <artifactId>jpa-projection-metamodel</artifactId>
+            <version>${projection-metamodel.version}</version>
         </dependency>
 
         <!-- Annotation Processing -->
