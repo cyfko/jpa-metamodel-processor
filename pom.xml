@@ -53,7 +53,8 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
         <!-- Dependencies Versions -->
-        <projection-metamodel.version>1.0.0</projection-metamodel.version>
+        <projection-spec.version>2.0.0-SNAPSHOT</projection-spec.version>
+        <projection-metamodel.version>1.0.1-SNAPSHOT</projection-metamodel.version>
         <auto-service.version>1.1.1</auto-service.version>
         <jakarta-persistence.version>3.1.0</jakarta-persistence.version>
         <junit.version>5.10.3</junit.version>
@@ -72,6 +73,13 @@
     </properties>
 
     <dependencies>
+        <!-- Projection specification -->
+        <dependency>
+            <groupId>io.github.cyfko</groupId>
+            <artifactId>projection-spec</artifactId>
+            <version>${projection-spec.version}</version>
+        </dependency>
+
         <!-- Projection specification -->
         <dependency>
             <groupId>io.github.cyfko</groupId>

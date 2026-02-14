@@ -241,7 +241,7 @@ public class ProjectionProcessor {
                         @SuppressWarnings("unchecked")
                         Map<String, Object> computedBy = (Map<String, Object>) params.get("computedBy");
                         String computedByClass = computedBy != null ? (String) computedBy.get("type") : null;
-                        String computedByMethod = computedBy != null ? (String) computedBy.get("method") : null;
+                        String computedByMethod = computedBy != null ? (String) computedBy.get("value") : null;
 
                         // Extract reducers
                         @SuppressWarnings("unchecked")

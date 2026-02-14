@@ -51,7 +51,7 @@ class ComputedByTest {
             import io.github.cyfko.projection.*;
             @Projection(from = User.class)
             public class UserDTO {
-                @Computed(dependsOn = {"firstName", "lastName"}, computedBy = @MethodReference(type = ExternalComputer.class, method = "joinNames"))
+                @Computed(dependsOn = {"firstName", "lastName"}, computedBy = @Method(value = "joinNames", type = ExternalComputer.class))
                 private String displayName;
             }
             """
@@ -98,7 +98,7 @@ class ComputedByTest {
             import io.github.cyfko.projection.*;
             @Projection(from = User.class, providers = {@Provider(UserComputations.class)})
             public class UserDTO {
-                @Computed(dependsOn = {"firstName", "lastName"}, computedBy = @MethodReference(method = "buildUserDisplayName"))
+                @Computed(dependsOn = {"firstName", "lastName"}, computedBy = @Method("buildUserDisplayName"))
                 private String displayName;
             }
             """
@@ -132,7 +132,7 @@ class ComputedByTest {
             import io.github.cyfko.projection.*;
             @Projection(from = User.class, providers = {@Provider(UserComputations.class)})
             public class UserDTO {
-                @Computed(dependsOn = {"firstName", "lastName"}, computedBy = @MethodReference(type = UserComputations.class, method = "buildUserDisplayName"))
+                @Computed(dependsOn = {"firstName", "lastName"}, computedBy = @Method(value = "buildUserDisplayName", type = UserComputations.class))
                 private String displayName;
             }
             """
@@ -165,7 +165,7 @@ class ComputedByTest {
             import io.github.cyfko.projection.*;
             @Projection(from = User.class, providers = {@Provider(UserComputations.class)})
             public class UserDTO {
-                @Computed(dependsOn = {"firstName", "lastName"}, computedBy = @MethodReference(type = UserComputations.class))
+                @Computed(dependsOn = {"firstName", "lastName"}, computedBy = @Method(type = UserComputations.class))
                 private String fullName;
             }
             """
@@ -198,7 +198,7 @@ class ComputedByTest {
             import io.github.cyfko.projection.*;
             @Projection(from = User.class, providers = {@Provider(UserComputations.class)})
             public class UserDTO {
-                @Computed(dependsOn = {"firstName", "lastName"}, computedBy = @MethodReference(method = "doesNotExist"))
+                @Computed(dependsOn = {"firstName", "lastName"}, computedBy = @Method("doesNotExist"))
                 private String displayName;
             }
             """
