@@ -289,4 +289,143 @@ public class AnnotationProcessorUtils {
             }
         }, null);
     }
+
+    /**
+     * Finds a method in a type element matching the given signature.
+     * <p>
+     * This method performs compile-time verification without using reflection,
+     * making it suitable for annotation processors. It checks:
+     * </p>
+     * <ul>
+     *   <li>Method name match</li>
+     *   <li>Method modifiers (static, public, etc.)</li>
+     *   <li>Return type compatibility</li>
+     *   <li>Parameter types and count</li>
+     * </ul>
+     *
+     * <h3>Usage Examples</h3>
+     *
+     * <h4>Basic Method Search</h4>
+     * <pre>{@code
+     * TypeElement targetClass = processingEnv.getElementUtils()
+     *     .getTypeElement("com.example.DataProcessor");
+     *
+     * TypeMirror stringType = processingEnv.getElementUtils()
+     *     .getTypeElement("java.lang.String")
+     *     .asType();
+     *
+     * TypeMirror intType = processingEnv.getTypeUtils()
+     *     .getPrimitiveType(TypeKind.INT);
+     *
+     * Optional<ExecutableElement> method = findMethodWithSignature(
+     *     targetClass,
+     *     "processData",
+     *     Set.of(Modifier.PUBLIC, Modifier.STATIC),
+     *     stringType,
+     *     List.of(stringType, intType),
+     *     processingEnv
+     * );
+     *
+     * method.ifPresent(m -> {
+     *     // Method found - process annotations, parameters, etc.
+     *     for (AnnotationMirror annotation : m.getAnnotationMirrors()) {
+     *         System.out.println(annotation);
+     *     }
+     * });
+     * }</pre>
+     *
+     * <h4>Check Existence</h4>
+     * <pre>{@code
+     * if (findMethodWithSignature(...).isPresent()) {
+     *     // Method exists with correct signature
+     * }
+     * }</pre>
+     *
+     * <h4>Flexible Matching</h4>
+     * <pre>{@code
+     * // Find any public method named "calculate" regardless of return type or parameters
+     * Optional<ExecutableElement> anyCalculate = findMethodWithSignature(
+     *     targetClass,
+     *     "calculate",
+     *     Set.of(Modifier.PUBLIC),
+     *     null,  // Any return type
+     *     null,  // Any parameters
+     *     processingEnv
+     * );
+     * }</pre>
+     *
+     * @param typeElement the type element to search in
+     * @param methodName the name of the method to find
+     * @param requiredModifiers set of modifiers the method must have; null to skip check
+     * @param expectedReturnType the expected return type; null to skip check
+     * @param parameterTypes list of expected parameter types in order; null to skip check
+     * @param processingEnv the processing environment
+     * @return an Optional containing the matching ExecutableElement, or empty if not found
+     */
+    public static Optional<ExecutableElement> findMethodWithSignature(
+            TypeElement typeElement,
+            String methodName,
+            Set<Modifier> requiredModifiers,
+            TypeMirror expectedReturnType,
+            List<TypeMirror> parameterTypes,
+            ProcessingEnvironment processingEnv) {
+
+        if (typeElement == null || methodName == null || methodName.isEmpty()) {
+            return Optional.empty();
+        }
+
+        for (Element enclosedElement : typeElement.getEnclosedElements()) {
+            if (enclosedElement.getKind() != ElementKind.METHOD) {
+                continue;
+            }
+
+            ExecutableElement method = (ExecutableElement) enclosedElement;
+
+            // Check method name
+            if (!method.getSimpleName().toString().equals(methodName)) {
+                continue;
+            }
+
+            // Check modifiers
+            if (requiredModifiers != null && !method.getModifiers().containsAll(requiredModifiers)) {
+                continue;
+            }
+
+            // Check return type
+            if (expectedReturnType != null) {
+                TypeMirror actualReturnType = method.getReturnType();
+                if (!processingEnv.getTypeUtils().isSameType(actualReturnType, expectedReturnType)) {
+                    continue;
+                }
+            }
+
+            // Check parameter count and types
+            List<? extends VariableElement> parameters = method.getParameters();
+            if (parameterTypes != null) {
+                if (parameters.size() != parameterTypes.size()) {
+                    continue;
+                }
+
+                boolean parametersMatch = true;
+                for (int i = 0; i < parameterTypes.size(); i++) {
+                    TypeMirror expectedParamType = parameterTypes.get(i);
+                    TypeMirror actualParamType = parameters.get(i).asType();
+
+                    if (!processingEnv.getTypeUtils().isSameType(actualParamType, expectedParamType)) {
+                        parametersMatch = false;
+                        break;
+                    }
+                }
+
+                if (!parametersMatch) {
+                    continue;
+                }
+            }
+
+            return Optional.of(method);
+        }
+
+        return Optional.empty();
+    }
+
 }
