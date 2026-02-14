@@ -302,55 +302,60 @@ public class AnnotationProcessorUtils {
      *   <li>Return type compatibility</li>
      *   <li>Parameter types and count</li>
      * </ul>
+     * <p>
+     * The search scope depends on the {@code includeInherited} parameter:
+     * </p>
+     * <ul>
+     *   <li>If {@code false}: searches only in the specified class itself</li>
+     *   <li>If {@code true}: searches in the class, all superclasses, and all interfaces</li>
+     * </ul>
      *
      * <h3>Usage Examples</h3>
      *
-     * <h4>Basic Method Search</h4>
+     * <h4>Search Only in Declared Methods</h4>
      * <pre>{@code
-     * TypeElement targetClass = processingEnv.getElementUtils()
-     *     .getTypeElement("com.example.DataProcessor");
-     *
-     * TypeMirror stringType = processingEnv.getElementUtils()
-     *     .getTypeElement("java.lang.String")
-     *     .asType();
-     *
-     * TypeMirror intType = processingEnv.getTypeUtils()
-     *     .getPrimitiveType(TypeKind.INT);
-     *
+     * // Only find methods declared directly in the class
      * Optional<ExecutableElement> method = findMethodWithSignature(
      *     targetClass,
      *     "processData",
      *     Set.of(Modifier.PUBLIC, Modifier.STATIC),
      *     stringType,
      *     List.of(stringType, intType),
+     *     false,  // Don't include inherited methods
+     *     processingEnv
+     * );
+     * }</pre>
+     *
+     * <h4>Search Including Inherited Methods</h4>
+     * <pre>{@code
+     * // Find methods from class, superclasses, and interfaces
+     * Optional<ExecutableElement> method = findMethodWithSignature(
+     *     targetClass,
+     *     "transform",
+     *     Set.of(Modifier.PUBLIC),
+     *     filterRequestType,
+     *     List.of(filterRequestType),
+     *     true,  // Include inherited methods
+     *     processingEnv
+     * );
+     * }</pre>
+     *
+     * <h4>Validate Method is Directly Declared</h4>
+     * <pre>{@code
+     * // Ensure the method is explicitly declared, not inherited
+     * Optional<ExecutableElement> method = findMethodWithSignature(
+     *     myClass,
+     *     "customHandler",
+     *     Set.of(Modifier.PUBLIC, Modifier.STATIC),
+     *     pageType,
+     *     List.of(filterRequestType, pageableType),
+     *     false,  // Must be declared in myClass itself
      *     processingEnv
      * );
      *
-     * method.ifPresent(m -> {
-     *     // Method found - process annotations, parameters, etc.
-     *     for (AnnotationMirror annotation : m.getAnnotationMirrors()) {
-     *         System.out.println(annotation);
-     *     }
-     * });
-     * }</pre>
-     *
-     * <h4>Check Existence</h4>
-     * <pre>{@code
-     * if (findMethodWithSignature(...).isPresent()) {
-     *     // Method exists with correct signature
-     * }
-     * }</pre>
-     *
-     * <h4>Flexible Matching</h4>
-     * <pre>{@code
-     * // Find any public method named "calculate" regardless of return type or parameters
-     * Optional<ExecutableElement> anyCalculate = findMethodWithSignature(
-     *     targetClass,
-     *     "calculate",
-     *     Set.of(Modifier.PUBLIC),
-     *     null,  // Any return type
-     *     null,  // Any parameters
-     *     processingEnv
+     * method.ifPresentOrElse(
+     *     m -> System.out.println("Handler declared in class"),
+     *     () -> System.out.println("Handler must be declared, not inherited")
      * );
      * }</pre>
      *
@@ -359,6 +364,7 @@ public class AnnotationProcessorUtils {
      * @param requiredModifiers set of modifiers the method must have; null to skip check
      * @param expectedReturnType the expected return type; null to skip check
      * @param parameterTypes list of expected parameter types in order; null to skip check
+     * @param includeInherited whether to search in superclasses and interfaces
      * @param processingEnv the processing environment
      * @return an Optional containing the matching ExecutableElement, or empty if not found
      */
@@ -368,18 +374,114 @@ public class AnnotationProcessorUtils {
             Set<Modifier> requiredModifiers,
             TypeMirror expectedReturnType,
             List<TypeMirror> parameterTypes,
+            boolean includeInherited,
             ProcessingEnvironment processingEnv) {
 
         if (typeElement == null || methodName == null || methodName.isEmpty()) {
             return Optional.empty();
         }
 
-        for (Element enclosedElement : typeElement.getEnclosedElements()) {
+        // If not including inherited, just search in the current class
+        if (!includeInherited) {
+            return searchInElement(
+                    typeElement,
+                    methodName,
+                    requiredModifiers,
+                    expectedReturnType,
+                    parameterTypes,
+                    processingEnv,
+                    false  // Don't skip private methods in the current class
+            );
+        }
+
+        // Track visited types to avoid infinite loops in interface hierarchies
+        Set<String> visitedTypes = new HashSet<>();
+
+        // 1. Search in current class and all superclasses
+        TypeElement currentClass = typeElement;
+        while (currentClass != null) {
+            String qualifiedName = currentClass.getQualifiedName().toString();
+
+            // Stop at Object
+            if (qualifiedName.equals("java.lang.Object")) {
+                break;
+            }
+
+            visitedTypes.add(qualifiedName);
+
+            // Search in current class
+            Optional<ExecutableElement> found = searchInElement(
+                    currentClass,
+                    methodName,
+                    requiredModifiers,
+                    expectedReturnType,
+                    parameterTypes,
+                    processingEnv,
+                    !currentClass.equals(typeElement) // skipPrivate if not the original class
+            );
+
+            if (found.isPresent()) {
+                return found;
+            }
+
+            // Move to superclass
+            TypeMirror superclass = currentClass.getSuperclass();
+            if (superclass.getKind() == javax.lang.model.type.TypeKind.DECLARED) {
+                Element superElement = ((DeclaredType) superclass).asElement();
+                if (superElement instanceof TypeElement) {
+                    currentClass = (TypeElement) superElement;
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+
+        // 2. Search in all interfaces (including inherited ones)
+        return searchInInterfaces(
+                typeElement,
+                methodName,
+                requiredModifiers,
+                expectedReturnType,
+                parameterTypes,
+                processingEnv,
+                visitedTypes
+        );
+    }
+
+    /**
+     * Searches for a method in a single element (class or interface).
+     *
+     * @param element the element to search in
+     * @param methodName the method name
+     * @param requiredModifiers required modifiers
+     * @param expectedReturnType expected return type
+     * @param parameterTypes expected parameter types
+     * @param processingEnv processing environment
+     * @param skipPrivate whether to skip private methods
+     * @return Optional containing the found method, or empty
+     */
+    private static Optional<ExecutableElement> searchInElement(
+            TypeElement element,
+            String methodName,
+            Set<Modifier> requiredModifiers,
+            TypeMirror expectedReturnType,
+            List<TypeMirror> parameterTypes,
+            ProcessingEnvironment processingEnv,
+            boolean skipPrivate) {
+
+        for (Element enclosedElement : element.getEnclosedElements()) {
             if (enclosedElement.getKind() != ElementKind.METHOD) {
                 continue;
             }
 
             ExecutableElement method = (ExecutableElement) enclosedElement;
+
+            // Skip private methods if requested (from superclasses)
+            if (skipPrivate && method.getModifiers().contains(Modifier.PRIVATE)) {
+                continue;
+            }
 
             // Check method name
             if (!method.getSimpleName().toString().equals(methodName)) {
@@ -428,4 +530,80 @@ public class AnnotationProcessorUtils {
         return Optional.empty();
     }
 
+    /**
+     * Recursively searches for a method in all interfaces implemented by the type.
+     *
+     * @param typeElement the type element whose interfaces to search
+     * @param methodName the method name
+     * @param requiredModifiers required modifiers
+     * @param expectedReturnType expected return type
+     * @param parameterTypes expected parameter types
+     * @param processingEnv processing environment
+     * @param visitedTypes set of already visited type names to avoid cycles
+     * @return Optional containing the found method, or empty
+     */
+    private static Optional<ExecutableElement> searchInInterfaces(
+            TypeElement typeElement,
+            String methodName,
+            Set<Modifier> requiredModifiers,
+            TypeMirror expectedReturnType,
+            List<TypeMirror> parameterTypes,
+            ProcessingEnvironment processingEnv,
+            Set<String> visitedTypes) {
+
+        // Get all directly implemented/extended interfaces
+        List<? extends TypeMirror> interfaces = typeElement.getInterfaces();
+
+        for (TypeMirror interfaceType : interfaces) {
+            if (interfaceType.getKind() != javax.lang.model.type.TypeKind.DECLARED) {
+                continue;
+            }
+
+            Element interfaceElement = ((DeclaredType) interfaceType).asElement();
+            if (!(interfaceElement instanceof TypeElement interfaceTypeElement)) {
+                continue;
+            }
+
+            String qualifiedName = interfaceTypeElement.getQualifiedName().toString();
+
+            // Skip if already visited (avoid cycles)
+            if (visitedTypes.contains(qualifiedName)) {
+                continue;
+            }
+
+            visitedTypes.add(qualifiedName);
+
+            // Search in this interface
+            Optional<ExecutableElement> found = searchInElement(
+                    interfaceTypeElement,
+                    methodName,
+                    requiredModifiers,
+                    expectedReturnType,
+                    parameterTypes,
+                    processingEnv,
+                    false  // Interfaces don't have private methods (before Java 9) or they're not inherited anyway
+            );
+
+            if (found.isPresent()) {
+                return found;
+            }
+
+            // Recursively search in super-interfaces
+            Optional<ExecutableElement> foundInSuper = searchInInterfaces(
+                    interfaceTypeElement,
+                    methodName,
+                    requiredModifiers,
+                    expectedReturnType,
+                    parameterTypes,
+                    processingEnv,
+                    visitedTypes
+            );
+
+            if (foundInSuper.isPresent()) {
+                return foundInSuper;
+            }
+        }
+
+        return Optional.empty();
+    }
 }
