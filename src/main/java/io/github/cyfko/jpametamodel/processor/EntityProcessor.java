@@ -44,6 +44,11 @@ public class EntityProcessor {
     // Only process entities referenced by @Projection
     private final List<String> referencedEntities = new ArrayList<>();
 
+    /**
+     * Constructs a new EntityProcessor.
+     *
+     * @param processingEnv the processing environment
+     */
     public EntityProcessor(ProcessingEnvironment processingEnv) {
         this.processingEnv = processingEnv;
     }
@@ -334,8 +339,7 @@ public class EntityProcessor {
         Helper.generateServiceProviderInfo(
                 processingEnv,
                 PersistenceRegistryProvider.class,
-                "io.github.cyfko.jpametamodel.providers.impl.PersistenceRegistryProviderImpl"
-        );
+                "io.github.cyfko.jpametamodel.providers.impl.PersistenceRegistryProviderImpl");
     }
 
     /**

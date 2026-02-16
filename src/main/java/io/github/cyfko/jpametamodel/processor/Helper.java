@@ -13,18 +13,20 @@ import java.io.Writer;
 public class Helper {
 
     /**
-     * Génère le fichier SPI dans META-INF/services.
+     * Generates the SPI file in META-INF/services.
      *
-     * @param processingEnv L'environnement de compilation
-     * @param serviceInterface L'interface (ex: PersistenceRegistryProvider.class)
-     * @param implementationFQN Le nom complet de la classe d'implémentation générée (ex: "io.github...Impl")
+     * @param processingEnv     The processing environment
+     * @param serviceInterface  The interface (e.g.
+     *                          PersistenceRegistryProvider.class)
+     * @param implementationFQN The fully qualified name of the generated
+     *                          implementation class (e.g. "io.github...Impl")
      */
     public static void generateServiceProviderInfo(ProcessingEnvironment processingEnv,
-                                                   Class<?> serviceInterface,
-                                                   String implementationFQN) {
+            Class<?> serviceInterface,
+            String implementationFQN) {
         Messager messager = processingEnv.getMessager();
 
-        // 1. Le nom du fichier DOIT être le FQN de l'interface (sans .class)
+        // 1. The file name MUST be the FQN of the interface (without .class)
         String resourcePath = "META-INF/services/" + serviceInterface.getName();
 
         messager.printMessage(Diagnostic.Kind.NOTE, "🛠️ Generating SPI file: " + resourcePath);
@@ -32,23 +34,22 @@ public class Helper {
         try {
             Filer filer = processingEnv.getFiler();
 
-            // 2. Création forcée (sans vérification préalable pour supporter les tests)
+            // 2. Forced creation (without prior check to support tests)
             FileObject serviceFile = filer.createResource(
                     StandardLocation.CLASS_OUTPUT,
                     "",
-                    resourcePath
-            );
+                    resourcePath);
 
-            // 3. On écrit le nom complet de l'implémentation à l'intérieur
+            // 3. Write the implementation full name inside
             try (Writer writer = serviceFile.openWriter()) {
                 writer.write(implementationFQN);
             }
 
-            // Log de succès (avec URI pour vérifier où il atterrit)
+            // Success log (with URI to check where it lands)
             messager.printMessage(Diagnostic.Kind.NOTE, "✅ SPI file generated at: " + serviceFile.toUri());
 
         } catch (FilerException e) {
-            // Fichier déjà créé dans ce round -> On ignore
+            // File already created in this round -> Ignore
         } catch (IOException e) {
             messager.printMessage(Diagnostic.Kind.ERROR, "Failed to generate SPI file: " + e.getMessage());
         }

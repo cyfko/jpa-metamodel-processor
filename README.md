@@ -89,9 +89,9 @@ The processor supports multiple resolution modes:
 
 ```java
 @Projection(from = User.class, providers = @Provider(UserComputations.class))
-public class UserDTO {
+public interface UserDTO {
     @Computed(dependsOn = {"firstName", "lastName"})
-    private String fullName;
+    String getFullName();
 }
 
 public class UserComputations {
@@ -106,12 +106,12 @@ public class UserComputations {
 
 ```java
 @Projection(from = User.class)
-public class UserDTO {
+public interface UserDTO {
     @Computed(
         dependsOn = {"firstName", "lastName"}, 
         computedBy = @MethodReference(type = ExternalComputer.class, method = "joinNames")
     )
-    private String displayName;
+    String getDisplayName();
 }
 
 public class ExternalComputer {
@@ -147,10 +147,10 @@ When a dependency traverses a collection, a reducer is mandatory:
 
 ```java
 @Projection(from = Company.class, providers = @Provider(CompanyComputers.class))
-public class CompanyDTO {
+public interface CompanyDTO {
     // Collection dependency → reducer required
     @Computed(dependsOn = {"orders.amount"}, reducers = {"SUM"})
-    private BigDecimal totalRevenue;
+    BigDecimal getTotalRevenue();
 }
 ```
 
@@ -238,21 +238,21 @@ public class UserComputations {
 
 // 3. DTO Projection
 @Projection(from = User.class, providers = @Provider(UserComputations.class))
-public class UserDTO {
+public interface UserDTO {
     @Projected(from = "firstName")
-    private String firstName;
+    String getFirstName();
     
     @Projected(from = "address.city")
-    private String city;
+    String getCity();
     
     @Computed(dependsOn = {"firstName", "lastName"})
-    private String fullName;
+    String getFullName();
     
     @Computed(dependsOn = {"birthDate"})
-    private Integer age;
+    Integer getAge();
     
     @Computed(dependsOn = {"orders.total"}, reducers = {"SUM"})
-    private BigDecimal totalSpent;
+    BigDecimal getTotalSpent();
 }
 ```
 

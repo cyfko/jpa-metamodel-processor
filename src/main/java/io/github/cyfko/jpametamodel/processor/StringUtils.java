@@ -7,17 +7,20 @@ import javax.lang.model.type.TypeMirror;
 import java.util.Locale;
 
 /**
- * Utility class for common string transformations used in the FilterQL Spring Boot starter.
+ * Utility class for common string transformations used in the FilterQL Spring
+ * Boot starter.
  * <p>
- * Provides methods for class name extraction and case conversions (PascalCase, camelCase, kebab-case)
- * to facilitate consistent naming conventions across generated code, metadata, and API endpoints.
+ * Provides methods for class name extraction and case conversions (PascalCase,
+ * camelCase, kebab-case)
+ * to facilitate consistent naming conventions across generated code, metadata,
+ * and API endpoints.
  * </p>
  *
  * <h2>Usage Context</h2>
  * <ul>
- *   <li>Code generation (annotation processors, metadata registries)</li>
- *   <li>API schema exposure (naming of fields and entities)</li>
- *   <li>Internal normalization for property references</li>
+ * <li>Code generation (annotation processors, metadata registries)</li>
+ * <li>API schema exposure (naming of fields and entities)</li>
+ * <li>Internal normalization for property references</li>
  * </ul>
  *
  * <h2>Thread Safety</h2>
@@ -35,7 +38,8 @@ public class StringUtils {
      * For example, {@code "com.example.MyEntity"} yields {@code "MyEntity"}.
      * </p>
      *
-     * @param fullClassName fully qualified class name (e.g., {@code "com.example.MyEntity"})
+     * @param fullClassName fully qualified class name (e.g.,
+     *                      {@code "com.example.MyEntity"})
      * @return simple class name (e.g., {@code "MyEntity"})
      * @throws NullPointerException if {@code fullClassName} is {@code null}
      */
@@ -98,9 +102,12 @@ public class StringUtils {
         if (camelCaseString == null || camelCaseString.isEmpty()) {
             return camelCaseString;
         }
-        // Use a regex to find uppercase letters that are not at the beginning of the string,
-        // and replace them with a hyphen followed by the lowercase version of the letter.
-        // The regex ([a-z0-9])([A-Z]) captures a lowercase letter/digit followed by an uppercase letter.
+        // Use a regex to find uppercase letters that are not at the beginning of the
+        // string,
+        // and replace them with a hyphen followed by the lowercase version of the
+        // letter.
+        // The regex ([a-z0-9])([A-Z]) captures a lowercase letter/digit followed by an
+        // uppercase letter.
         // $1 refers to the first captured group (the lowercase letter/digit),
         // $2 refers to the second captured group (the uppercase letter).
         return camelCaseString
@@ -132,7 +139,7 @@ public class StringUtils {
     }
 
     /**
-     * Retourne le nom qualifié de l'élément pour les messages d'erreur.
+     * Returns the qualified name of the element for error messages.
      */
     public static String getQualifiedName(ExecutableElement ee) {
         TypeElement enclosingClass = (TypeElement) ee.getEnclosingElement();
@@ -144,37 +151,37 @@ public class StringUtils {
     }
 
     /**
-     * Extrait le nom de propriété à partir d'une méthode getter en suivant les conventions JavaBeans.
+     * Extracts the property name from a getter method following JavaBeans
+     * conventions.
      *
-     * Conventions supportées :
-     * - getXxx() → "xxx" (types non-boolean)
-     * - isXxx() → "xxx" (types boolean uniquement)
-     * - hasXxx() → "xxx" (types boolean uniquement)
+     * Supported conventions:
+     * - getXxx() → "xxx" (non-boolean types)
+     * - isXxx() → "xxx" (boolean types only)
+     * - hasXxx() → "xxx" (boolean types only)
      *
-     * @param ee L'élément exécutable (méthode) à analyser
-     * @return Le nom de propriété en camelCase
-     * @throws IllegalStateException si la méthode ne respecte pas les conventions
+     * @param ee The executable element (method) to analyze
+     * @return The property name in camelCase
+     * @throws IllegalStateException if the method does not follow conventions
      */
     public static String toJavaNamingAwareFieldName(ExecutableElement ee) {
         String methodName = ee.getSimpleName().toString();
         TypeKind kind = ee.getReturnType().getKind();
         boolean isBoolean = kind == TypeKind.BOOLEAN || "java.lang.Boolean".equals(ee.getReturnType().toString());
 
-        // Cas 1 : getXxx() - tous types sauf boolean
+        // Case 1: getXxx() - all types except boolean
         if (methodName.startsWith("get")) {
             if (methodName.length() <= 3) {
                 throw new IllegalStateException(
                         "Invalid getter name: '" + methodName + "()' in " + getQualifiedName(ee) + ". " +
-                                "Getter must be in format 'getXxx()' where 'Xxx' is at least one character."
-                );
+                                "Getter must be in format 'getXxx()' where 'Xxx' is at least one character.");
             }
 
             if (isBoolean) {
                 throw new IllegalStateException(
                         "Invalid getter for boolean: '" + methodName + "()' in " + getQualifiedName(ee) + ". " +
                                 "Boolean getters must use 'is' or 'has' prefix, not 'get'. " +
-                                "Expected: 'is" + methodName.substring(3) + "()' or 'has" + methodName.substring(3) + "()'."
-                );
+                                "Expected: 'is" + methodName.substring(3) + "()' or 'has" + methodName.substring(3)
+                                + "()'.");
             }
 
             String propertyName = methodName.substring(3);
@@ -182,21 +189,20 @@ public class StringUtils {
             return toCamelCase(propertyName);
         }
 
-        // Cas 2 : isXxx() - boolean uniquement
+        // Case 2: isXxx() - boolean only
         if (methodName.startsWith("is")) {
             if (methodName.length() <= 2) {
                 throw new IllegalStateException(
                         "Invalid getter name: '" + methodName + "()' in " + getQualifiedName(ee) + ". " +
-                                "Getter must be in format 'isXxx()' where 'Xxx' is at least one character."
-                );
+                                "Getter must be in format 'isXxx()' where 'Xxx' is at least one character.");
             }
 
             if (!isBoolean) {
                 throw new IllegalStateException(
                         "Invalid 'is' prefix for non-boolean: '" + methodName + "()' returns " +
                                 ee.getReturnType() + " in " + getQualifiedName(ee) + ". " +
-                                "'is' prefix is reserved for boolean types. Use 'get" + methodName.substring(2) + "()' instead."
-                );
+                                "'is' prefix is reserved for boolean types. Use 'get" + methodName.substring(2)
+                                + "()' instead.");
             }
 
             String propertyName = methodName.substring(2);
@@ -204,21 +210,20 @@ public class StringUtils {
             return toCamelCase(propertyName);
         }
 
-        // Cas 3 : hasXxx() - boolean uniquement
+        // Case 3: hasXxx() - boolean only
         if (methodName.startsWith("has")) {
             if (methodName.length() <= 3) {
                 throw new IllegalStateException(
                         "Invalid getter name: '" + methodName + "()' in " + getQualifiedName(ee) + ". " +
-                                "Getter must be in format 'hasXxx()' where 'Xxx' is at least one character."
-                );
+                                "Getter must be in format 'hasXxx()' where 'Xxx' is at least one character.");
             }
 
             if (!isBoolean) {
                 throw new IllegalStateException(
                         "Invalid 'has' prefix for non-boolean: '" + methodName + "()' returns " +
                                 ee.getReturnType() + " in " + getQualifiedName(ee) + ". " +
-                                "'has' prefix is reserved for boolean types. Use 'get" + methodName.substring(3) + "()' instead."
-                );
+                                "'has' prefix is reserved for boolean types. Use 'get" + methodName.substring(3)
+                                + "()' instead.");
             }
 
             String propertyName = methodName.substring(3);
@@ -226,19 +231,19 @@ public class StringUtils {
             return toCamelCase(propertyName);
         }
 
-        // Cas 4 : Aucune convention respectée
+        // Case 4: No convention followed
         throw buildDetailedNamingException(methodName, isBoolean, ee);
     }
 
     /**
-     * Valide que le nom de propriété extrait suit les conventions (première lettre majuscule).
+     * Validates that the extracted property name follows conventions (first letter
+     * uppercase).
      */
     private static void validatePropertyNameFormat(String propertyName, String methodName, ExecutableElement ee) {
         if (propertyName.isEmpty()) {
             throw new IllegalStateException(
                     "Invalid getter name: '" + methodName + "()' in " + getQualifiedName(ee) + ". " +
-                            "Property name cannot be empty after removing prefix."
-            );
+                            "Property name cannot be empty after removing prefix.");
         }
 
         char firstChar = propertyName.charAt(0);
@@ -247,22 +252,20 @@ public class StringUtils {
                     "Invalid getter name: '" + methodName + "()' in " + getQualifiedName(ee) + ". " +
                             "First character after prefix must be uppercase (JavaBeans convention). " +
                             "Expected: '" + methodName.substring(0, methodName.length() - propertyName.length()) +
-                            Character.toUpperCase(firstChar) + propertyName.substring(1) + "()'."
-            );
+                            Character.toUpperCase(firstChar) + propertyName.substring(1) + "()'.");
         }
 
-        // Vérifier qu'il n'y a pas de caractères spéciaux interdits
+        // Check for forbidden special characters
         if (!propertyName.matches("^[A-Z][a-zA-Z0-9]*$")) {
             throw new IllegalStateException(
                     "Invalid property name: '" + propertyName + "' derived from '" + methodName + "()' in " +
                             getQualifiedName(ee) + ". " +
-                            "Property names must contain only alphanumeric characters and start with an uppercase letter after prefix."
-            );
+                            "Property names must contain only alphanumeric characters and start with an uppercase letter after prefix.");
         }
     }
 
     /**
-     * Construit une exception détaillée pour les méthodes ne respectant aucune convention.
+     * Builds a detailed exception for methods that do not follow any convention.
      */
     private static IllegalStateException buildDetailedNamingException(
             String methodName,
