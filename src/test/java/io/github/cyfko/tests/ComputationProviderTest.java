@@ -117,9 +117,9 @@ class ComputationProviderTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"firstName", "lastName"})
-                            private String fullName;
+                            String getFullName();
                         }
                         """);
 
@@ -128,7 +128,7 @@ class ComputationProviderTest {
                 .compile(entity, computer, dto);
 
         assertThat(compilation).failed();
-        assertThat(compilation).hadErrorContaining("No matching provider method found for computed field 'fullName'");
+        assertThat(compilation).hadErrorContaining("No matching provider found for @Computed method 'getFullName'");
     }
 
     @Test
@@ -142,9 +142,9 @@ class ComputationProviderTest {
                         import io.github.cyfko.projection.*;
 
                         @Projection(from = User.class)
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"firstName", "lastName"})
-                            private String fullName;
+                            String getFullName();
                         }
                         """);
 
@@ -153,7 +153,7 @@ class ComputationProviderTest {
                 .compile(entity, dto);
 
         assertThat(compilation).failed();
-        assertThat(compilation).hadErrorContaining("No matching provider method found for computed field 'fullName'");
+        assertThat(compilation).hadErrorContaining("No matching provider found for @Computed method 'getFullName'");
     }
 
     // ==================== Test Category 2: Wrong Method Name ====================
@@ -168,7 +168,7 @@ class ComputationProviderTest {
                         package io.github.cyfko.example;
 
                         public class UserComputations {
-                            // Wrong method name: should be getFullName, not computeFullName
+                            // Wrong method name: should be toFullName, not computeFullName
                             public static String computeFullName(String firstName, String lastName) {
                                 return firstName + " " + lastName;
                             }
@@ -185,9 +185,9 @@ class ComputationProviderTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"firstName", "lastName"})
-                            private String fullName;
+                            String getFullName();
                         }
                         """);
 
@@ -196,7 +196,7 @@ class ComputationProviderTest {
                 .compile(entity, computer, dto);
 
         assertThat(compilation).failed();
-        assertThat(compilation).hadErrorContaining("No matching provider method found for computed field 'fullName'");
+        assertThat(compilation).hadErrorContaining("No matching provider found for @Computed method 'getFullName'");
     }
 
     @Test
@@ -209,8 +209,8 @@ class ComputationProviderTest {
                         package io.github.cyfko.example;
 
                         public class UserComputations {
-                            // Wrong case: should be getFullName, not getfullName
-                            public static String getfullName(String firstName, String lastName) {
+                            // Wrong case: should be toFullName, not tofullName
+                            public static String tofullName(String firstName, String lastName) {
                                 return firstName + " " + lastName;
                             }
                         }
@@ -226,9 +226,9 @@ class ComputationProviderTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"firstName", "lastName"})
-                            private String fullName;
+                            String getFullName();
                         }
                         """);
 
@@ -237,7 +237,7 @@ class ComputationProviderTest {
                 .compile(entity, computer, dto);
 
         assertThat(compilation).failed();
-        assertThat(compilation).hadErrorContaining("No matching provider method found for computed field 'fullName'");
+        assertThat(compilation).hadErrorContaining("No matching provider found for @Computed method 'getFullName'");
     }
 
     // ==================== Test Category 3: Return Type Mismatch
@@ -254,7 +254,7 @@ class ComputationProviderTest {
 
                         public class UserComputations {
                             // Wrong return type: should be String, not Integer
-                            public static Integer getFullName(String firstName, String lastName) {
+                            public static Integer toFullName(String firstName, String lastName) {
                                 return firstName.length() + lastName.length();
                             }
                         }
@@ -270,9 +270,9 @@ class ComputationProviderTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"firstName", "lastName"})
-                            private String fullName;
+                            String getFullName();
                         }
                         """);
 
@@ -282,7 +282,7 @@ class ComputationProviderTest {
 
         assertThat(compilation).failed();
         assertThat(compilation).hadErrorContaining(
-                ".getFullName has incompatible return type. Required: java.lang.String, Found: java.lang.Integer");
+                ".toFullName has incompatible return type. Required: java.lang.String, Found: java.lang.Integer");
     }
 
     @Test
@@ -296,7 +296,7 @@ class ComputationProviderTest {
 
                         public class UserComputations {
                             // Wrong return type: should be Integer (boxed), not int (primitive)
-                            public static int getAge(java.time.LocalDate birthDate) {
+                            public static int toAge(java.time.LocalDate birthDate) {
                                 return 25;
                             }
                         }
@@ -312,9 +312,9 @@ class ComputationProviderTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"birthDate"})
-                            private Integer age;
+                            Integer getAge();
                         }
                         """);
 
@@ -341,7 +341,7 @@ class ComputationProviderTest {
 
                         public class UserComputations {
                             // Missing parameter: should have 2 parameters, only has 1
-                            public static String getFullName(String firstName) {
+                            public static String toFullName(String firstName) {
                                 return firstName;
                             }
                         }
@@ -357,9 +357,9 @@ class ComputationProviderTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"firstName", "lastName"})
-                            private String fullName;
+                            String getFullName();
                         }
                         """);
 
@@ -369,7 +369,7 @@ class ComputationProviderTest {
 
         assertThat(compilation).failed();
         assertThat(compilation)
-                .hadErrorContaining(".getFullName has incompatible parameters count. Required: 2, Found: 1");
+                .hadErrorContaining(".toFullName has incompatible parameters count. Required: 2, Found: 1");
     }
 
     @Test
@@ -383,7 +383,7 @@ class ComputationProviderTest {
 
                         public class UserComputations {
                             // Too many parameters: should have 2, has 3
-                            public static String getFullName(String firstName, String lastName, String middleName) {
+                            public static String toFullName(String firstName, String lastName, String middleName) {
                                 return firstName + " " + middleName + " " + lastName;
                             }
                         }
@@ -399,9 +399,9 @@ class ComputationProviderTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"firstName", "lastName"})
-                            private String fullName;
+                            String getFullName();
                         }
                         """);
 
@@ -411,7 +411,7 @@ class ComputationProviderTest {
 
         assertThat(compilation).failed();
         assertThat(compilation)
-                .hadErrorContaining(".getFullName has incompatible parameters count. Required: 2, Found: 3");
+                .hadErrorContaining(".toFullName has incompatible parameters count. Required: 2, Found: 3");
     }
 
     @Test
@@ -425,7 +425,7 @@ class ComputationProviderTest {
 
                         public class UserComputations {
                             // Should have 1 parameter but has 0
-                            public static Integer getAge() {
+                            public static Integer toAge() {
                                 return 25;
                             }
                         }
@@ -441,9 +441,9 @@ class ComputationProviderTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"birthDate"})
-                            private Integer age;
+                            Integer getAge();
                         }
                         """);
 
@@ -469,7 +469,7 @@ class ComputationProviderTest {
 
                         public class UserComputations {
                             // Wrong parameter type: should be String, not Integer
-                            public static String getFullName(Integer firstName, String lastName) {
+                            public static String toFullName(Integer firstName, String lastName) {
                                 return firstName.toString() + " " + lastName;
                             }
                         }
@@ -485,9 +485,9 @@ class ComputationProviderTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"firstName", "lastName"})
-                            private String fullName;
+                            String getFullName();
                         }
                         """);
 
@@ -497,7 +497,7 @@ class ComputationProviderTest {
 
         assertThat(compilation).failed();
         assertThat(compilation).hadErrorContaining(
-                ".getFullName has incompatible type on parameter at position 0. Required: java.lang.String, Found: java.lang.Integer");
+                ".toFullName has incompatible type on parameter[0]. Required: java.lang.String, Found: java.lang.Integer");
     }
 
     @Test
@@ -511,7 +511,7 @@ class ComputationProviderTest {
 
                         public class UserComputations {
                             // Parameters in good order (parameter's names does not matter): should be firstName, lastName
-                            public static String getFullName(String lastName, String firstName) {
+                            public static String toFullName(String lastName, String firstName) {
                                 return firstName + " " + lastName;
                             }
                         }
@@ -527,9 +527,9 @@ class ComputationProviderTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"firstName", "lastName"})
-                            private String fullName;
+                            String getFullName();
                         }
                         """);
 
@@ -551,7 +551,7 @@ class ComputationProviderTest {
 
                         public class UserComputations {
                             // Wrong: expects Integer (boxed) but entity has int (primitive)
-                            public static String getAgeString(int age) {
+                            public static String toAgeString(int age) {
                                 return age.toString();
                             }
                         }
@@ -567,9 +567,9 @@ class ComputationProviderTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"age"})
-                            private String ageString;
+                            String getAgeString();
                         }
                         """);
 
@@ -581,7 +581,7 @@ class ComputationProviderTest {
         // But let's verify the actual behavior
         assertThat(compilation).failed();
         assertThat(compilation).hadErrorContaining(
-                "has incompatible type on parameter at position 0. Required: java.lang.Integer, Found: int");
+                "has incompatible type on parameter[0]. Required: java.lang.Integer, Found: int");
     }
 
     // ==================== Test Category 6: Multiple Computers Resolution
@@ -597,7 +597,7 @@ class ComputationProviderTest {
                         package io.github.cyfko.example;
 
                         public class UserComputations1 {
-                            public static String getFullName(String firstName, String lastName) {
+                            public static String toFullName(String firstName, String lastName) {
                                 return "FIRST: " + firstName + " " + lastName;
                             }
                         }
@@ -609,7 +609,7 @@ class ComputationProviderTest {
                         package io.github.cyfko.example;
 
                         public class UserComputations2 {
-                            public static String getFullName(String firstName, String lastName) {
+                            public static String toFullName(String firstName, String lastName) {
                                 return "SECOND: " + firstName + " " + lastName;
                             }
                         }
@@ -628,9 +628,9 @@ class ComputationProviderTest {
                                 @Provider(UserComputations2.class)
                             }
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"firstName", "lastName"})
-                            private String fullName;
+                            String getFullName();
                         }
                         """);
 
@@ -666,7 +666,7 @@ class ComputationProviderTest {
 
                         public class UserComputations2 {
                             // Correct method
-                            public static String getFullName(String firstName, String lastName) {
+                            public static String toFullName(String firstName, String lastName) {
                                 return firstName + " " + lastName;
                             }
                         }
@@ -685,9 +685,9 @@ class ComputationProviderTest {
                                 @Provider(UserComputations2.class)
                             }
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"firstName", "lastName"})
-                            private String fullName;
+                            String getFullName();
                         }
                         """);
 
@@ -711,7 +711,7 @@ class ComputationProviderTest {
                         package io.github.cyfko.example;
 
                         public class UserComputations {
-                            public static String getFullName(String firstName, String lastName) {
+                            public static String toFullName(String firstName, String lastName) {
                                 return firstName + " " + lastName;
                             }
                         }
@@ -727,9 +727,9 @@ class ComputationProviderTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"firstName", "lastName"})
-                            private String fullName;
+                            String getFullName();
                         }
                         """);
 
@@ -751,7 +751,7 @@ class ComputationProviderTest {
 
                         public class UserComputations {
                             // Instance method (for bean-based resolution)
-                            public String getFullName(String firstName, String lastName) {
+                            public String toFullName(String firstName, String lastName) {
                                 return firstName + " " + lastName;
                             }
                         }
@@ -767,9 +767,9 @@ class ComputationProviderTest {
                             from = User.class,
                             providers = {@Provider(value = UserComputations.class, bean = "userComputations")}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"firstName", "lastName"})
-                            private String fullName;
+                            String getFullName();
                         }
                         """);
 
@@ -791,7 +791,7 @@ class ComputationProviderTest {
                         import java.time.LocalDate;
 
                         public class UserComputations {
-                            public static Integer getAge(LocalDate birthDate) {
+                            public static Integer toAge(LocalDate birthDate) {
                                 return java.time.Period.between(birthDate, java.time.LocalDate.now()).getYears();
                             }
                         }
@@ -807,9 +807,9 @@ class ComputationProviderTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"birthDate"})
-                            private Integer age;
+                            Integer getAge();
                         }
                         """);
 
@@ -831,7 +831,7 @@ class ComputationProviderTest {
                         import java.math.BigDecimal;
 
                         public class ProductComputations {
-                            public static BigDecimal getTotalValue(BigDecimal price, Integer quantity) {
+                            public static BigDecimal toTotalValue(BigDecimal price, Integer quantity) {
                                 return price.multiply(BigDecimal.valueOf(quantity));
                             }
                         }
@@ -848,9 +848,9 @@ class ComputationProviderTest {
                             from = Product.class,
                             providers = {@Provider(ProductComputations.class)}
                         )
-                        public class ProductDTO {
+                        public interface ProductDTO {
                             @Computed(dependsOn = {"price", "quantity"})
-                            private BigDecimal totalValue;
+                            BigDecimal getTotalValue();
                         }
                         """);
 
@@ -875,11 +875,11 @@ class ComputationProviderTest {
                         import java.time.LocalDate;
 
                         public class UserComputations {
-                            public static String getFullName(String firstName, String lastName) {
+                            public static String toFullName(String firstName, String lastName) {
                                 return firstName + " " + lastName;
                             }
 
-                            public static Integer getAge(LocalDate birthDate) {
+                            public static Integer toAge(LocalDate birthDate) {
                                 return java.time.Period.between(birthDate, java.time.LocalDate.now()).getYears();
                             }
                         }
@@ -895,12 +895,12 @@ class ComputationProviderTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"firstName", "lastName"})
-                            private String fullName;
+                            String getFullName();
 
                             @Computed(dependsOn = {"birthDate"})
-                            private Integer age;
+                            Integer getAge();
                         }
                         """);
 
@@ -921,7 +921,7 @@ class ComputationProviderTest {
                         package io.github.cyfko.example;
 
                         public class NameComputations {
-                            public static String getFullName(String firstName, String lastName) {
+                            public static String toFullName(String firstName, String lastName) {
                                 return firstName + " " + lastName;
                             }
                         }
@@ -934,7 +934,7 @@ class ComputationProviderTest {
                         import java.time.LocalDate;
 
                         public class AgeComputations {
-                            public static Integer getAge(LocalDate birthDate) {
+                            public static Integer toAge(LocalDate birthDate) {
                                 return java.time.Period.between(birthDate, java.time.LocalDate.now()).getYears();
                             }
                         }
@@ -953,12 +953,12 @@ class ComputationProviderTest {
                                 @Provider(AgeComputations.class)
                             }
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"firstName", "lastName"})
-                            private String fullName;
+                            String getFullName();
 
                             @Computed(dependsOn = {"birthDate"})
-                            private Integer age;
+                            Integer getAge();
                         }
                         """);
 
@@ -982,7 +982,7 @@ class ComputationProviderTest {
                         package io.github.cyfko.example;
 
                         public class UserComputations {
-                            public static int getAge(java.time.LocalDate birthDate) {
+                            public static int toAge(java.time.LocalDate birthDate) {
                                 return java.time.Period.between(birthDate, java.time.LocalDate.now()).getYears();
                             }
                         }
@@ -998,9 +998,9 @@ class ComputationProviderTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"birthDate"})
-                            private int age;
+                            int getAge();
                         }
                         """);
 
@@ -1022,7 +1022,7 @@ class ComputationProviderTest {
                         import java.math.BigDecimal;
 
                         public class ProductComputations {
-                            public static BigDecimal getDiscountedPrice(BigDecimal price) {
+                            public static BigDecimal toDiscountedPrice(BigDecimal price) {
                                 return price.multiply(BigDecimal.valueOf(0.9));
                             }
                         }
@@ -1039,9 +1039,9 @@ class ComputationProviderTest {
                             from = Product.class,
                             providers = {@Provider(ProductComputations.class)}
                         )
-                        public class ProductDTO {
+                        public interface ProductDTO {
                             @Computed(dependsOn = {"price"})
-                            private BigDecimal discountedPrice;
+                            BigDecimal getDiscountedPrice();
                         }
                         """);
 
@@ -1063,7 +1063,7 @@ class ComputationProviderTest {
                         import java.time.LocalDateTime;
 
                         public class OrderComputations {
-                            public static LocalDateTime getProcessedAt(LocalDateTime createdAt) {
+                            public static LocalDateTime toProcessedAt(LocalDateTime createdAt) {
                                 return createdAt.plusHours(1);
                             }
                         }
@@ -1080,9 +1080,9 @@ class ComputationProviderTest {
                             from = Order.class,
                             providers = {@Provider(OrderComputations.class)}
                         )
-                        public class OrderDTO {
+                        public interface OrderDTO {
                             @Computed(dependsOn = {"createdAt"})
-                            private LocalDateTime processedAt;
+                            LocalDateTime getProcessedAt();
                         }
                         """);
 
@@ -1107,9 +1107,9 @@ class ComputationProviderTest {
                         import io.github.cyfko.projection.*;
 
                         @Projection(from = User.class)
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {})
-                            private String computed;
+                            String getComputed();
                         }
                         """);
 
@@ -1165,7 +1165,7 @@ class ComputationProviderTest {
                         package io.github.cyfko.example;
 
                         public class UserComputations {
-                            public static String getFullName(String firstName, String lastName) {
+                            public static String toFullName(String firstName, String lastName) {
                                 return firstName + " " + lastName;
                             }
                         }
@@ -1181,9 +1181,9 @@ class ComputationProviderTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"firstName", "lastName"})
-                            private String fullName;
+                            String getFullName();
                         }
                         """);
 
@@ -1218,7 +1218,7 @@ class ComputationProviderTest {
                         package io.github.cyfko.example;
 
                         public class UserComputations {
-                            public String getFullName(String firstName, String lastName) {
+                            public String toFullName(String firstName, String lastName) {
                                 return firstName + " " + lastName;
                             }
                         }
@@ -1234,9 +1234,9 @@ class ComputationProviderTest {
                             from = User.class,
                             providers = {@Provider(value = UserComputations.class, bean = "userComputationsBean")}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"firstName", "lastName"})
-                            private String fullName;
+                            String getFullName();
                         }
                         """);
 

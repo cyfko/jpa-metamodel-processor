@@ -23,6 +23,8 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static io.github.cyfko.jpametamodel.processor.AnnotationProcessorUtils.BASIC_JPA_TYPES;
+import static io.github.cyfko.jpametamodel.processor.StringUtils.hasJavaNamingConvention;
+import static io.github.cyfko.jpametamodel.processor.StringUtils.toJavaNamingAwareFieldName;
 
 /**
  * Processor for @Projection annotated DTOs that generates projection metadata.
@@ -62,10 +64,13 @@ public class ProjectionProcessor {
         Messager messager = processingEnv.getMessager();
 
         for (TypeElement dtoClass : referencedProjections) {
-            processProjection(dtoClass, messager);
+            try {
+                processProjection(dtoClass, messager);
+                messager.printMessage(Diagnostic.Kind.NOTE, "✅ Processed " + projectionRegistry.size() + " projections");
+            } catch (Exception e) {
+                messager.printError(e.getMessage(), dtoClass);
+            }
         }
-
-        messager.printMessage(Diagnostic.Kind.NOTE, "✅ Processed " + projectionRegistry.size() + " projections");
     }
 
     /**
@@ -98,16 +103,14 @@ public class ProjectionProcessor {
 
         try {
             JavaFileObject file = processingEnv.getFiler()
-                    .createSourceFile(
-                            "io.github.cyfko.jpametamodel.providers.impl.ProjectionRegistryProviderImpl");
+                    .createSourceFile("io.github.cyfko.jpametamodel.providers.impl.ProjectionRegistryProviderImpl");
 
             try (Writer writer = file.openWriter()) {
                 writeProjectionRegistry(writer);
             }
 
             messager.printMessage(Diagnostic.Kind.NOTE,
-                    "✅ ProjectionRegistryProviderImpl generated with " + projectionRegistry.size()
-                            + " projections");
+                    "✅ ProjectionRegistryProviderImpl generated with " + projectionRegistry.size() + " projections");
 
         } catch (IOException e) {
             messager.printMessage(Diagnostic.Kind.ERROR,
@@ -144,8 +147,7 @@ public class ProjectionProcessor {
         // Get entity class from annotation
         TypeMirror entityTypeMirror = getEntityClass(dtoClass);
         if (entityTypeMirror == null) {
-            messager.printMessage(Diagnostic.Kind.ERROR,
-                    "Cannot determine entity class from @Projection", dtoClass);
+            messager.printMessage(Diagnostic.Kind.ERROR, "Cannot determine entity class from @Projection", dtoClass);
             return;
         }
 
@@ -185,43 +187,48 @@ public class ProjectionProcessor {
 
         // Process fields
         for (Element enclosedElement : dtoClass.getEnclosedElements()) {
-            if (enclosedElement.getKind() != ElementKind.FIELD)
+            if (enclosedElement.getKind() != ElementKind.METHOD)
                 continue;
-            if (enclosedElement.getModifiers().contains(Modifier.STATIC))
-                continue;
+            Set<Modifier> modifiers = enclosedElement.getModifiers();
+            if (modifiers.contains(Modifier.STATIC) || modifiers.contains(Modifier.PRIVATE))
+                continue; // Skip static and private element
 
             // Process direct mappings
+            final ExecutableElement methodElement = (ExecutableElement) enclosedElement;
             AnnotationProcessorUtils.processExplicitFields(
-                    enclosedElement,
+                    methodElement,
                     Projected.class.getName(),
                     params -> {
                         // validate entity field path
                         String entityField = params.get("from").toString();
-                        insertDirectMapping((VariableElement) enclosedElement, entityClassName, entityField,
-                                directMappings);
+                        insertDirectMapping(methodElement, entityClassName, entityField, directMappings);
                     },
                     () -> {
-                        // Automatically consider this field if it is not a @Computed field
-                        if (enclosedElement.getAnnotation(Computed.class) != null)
+                        // Automatically consider this method if it is not a @Computed field and start by getXxxx
+                        // as Java Naming Convention.
+                        String name = methodElement.getSimpleName().toString();
+                        if (methodElement.getAnnotation(Computed.class) != null || !hasJavaNamingConvention(name)) {
                             return;
-                        insertDirectMapping((VariableElement) enclosedElement, entityClassName,
-                                enclosedElement.toString(), directMappings);
+                        }
+                        name = toJavaNamingAwareFieldName(methodElement);
+                        insertDirectMapping(methodElement, entityClassName, name, directMappings);
                     });
 
             // Process computed fields
-            AnnotationProcessorUtils.processExplicitFields(enclosedElement,
+            AnnotationProcessorUtils.processExplicitFields(methodElement,
                     Computed.class.getName(),
                     params -> {
-                        String dtoField = enclosedElement.getSimpleName().toString();
+                        String dtoField = toJavaNamingAwareFieldName(methodElement);
+
                         @SuppressWarnings("unchecked")
                         List<String> dependencies = (List<String>) params.get("dependsOn");
 
                         // Validate DTO field exists
                         if (dependencies.isEmpty()) {
-                            messager.printMessage(Diagnostic.Kind.ERROR,
-                                    "Computed field '" + dtoField + "' does not declare any dependency in "
-                                            + dtoClass.getSimpleName(),
-                                    dtoClass);
+                            messager.printMessage(Diagnostic.Kind.ERROR, String.format(
+                                    "@Computed method '%s' does not declare any dependency in %s",
+                                    dtoClass.getSimpleName(), dtoClass)
+                            );
                             return;
                         }
 
@@ -232,7 +239,9 @@ public class ProjectionProcessor {
                                     fqcn -> depsToFqcnMapping.put(dependency, fqcn));
                             if (errorMessage != null) {
                                 messager.printMessage(Diagnostic.Kind.ERROR,
-                                        "Computed field '" + dtoField + "': " + errorMessage, dtoClass);
+                                        String.format("Computed field '%s': %s", dtoField,  errorMessage),
+                                        dtoClass
+                                );
                                 return;
                             }
                         }
@@ -250,9 +259,8 @@ public class ProjectionProcessor {
 
                         // Extract reducers
                         @SuppressWarnings("unchecked")
-                        List<String> reducersList = (List<String>) params.get("reducers");
-                        String[] reducerNames = reducersList != null ? reducersList.toArray(new String[0])
-                                : new String[0];
+                        var reducersList = (List<String>) params.get("reducers");
+                        var reducerNames = reducersList != null ? reducersList.toArray(new String[0]) : new String[0];
 
                         // Validate reducers: each collection dependency MUST have a reducer
                         List<String> collectionDeps = findCollectionDependencies(entityClassName, dependencies);
@@ -273,14 +281,17 @@ public class ProjectionProcessor {
                         }
 
                         // Validate that compute method exist in any of provided computation providers
-                        SimpleComputedField field = new SimpleComputedField(dtoField,
-                                dependencies.toArray(new String[0]), reducerIndices, reducerNames,
-                                computedByClass, computedByMethod);
-                        String errMessage = validateComputeMethod(field, enclosedElement.asType(), computers,
-                                depsToFqcnMapping);
+                        SimpleComputedField field = new SimpleComputedField(
+                                dtoField,
+                                dependencies.toArray(new String[0]),
+                                reducerIndices,
+                                reducerNames,
+                                computedByClass,
+                                computedByMethod
+                        );
+                        String errMessage = validateComputeMethod(field, methodElement, computers, depsToFqcnMapping);
                         if (errMessage != null) {
-                            printComputationMethodError(dtoClass, enclosedElement, field, errMessage, computers,
-                                    depsToFqcnMapping);
+                            printComputationMethodError(dtoClass, methodElement, field, errMessage, computers, depsToFqcnMapping);
                             return;
                         }
 
@@ -304,30 +315,45 @@ public class ProjectionProcessor {
         projectionRegistry.put(dtoClass.getQualifiedName().toString(), metadata);
     }
 
-    private void insertDirectMapping(VariableElement dtoField, String entityClassName, String entityField,
-            List<SimpleDirectMapping> directMappings) {
+    private void insertDirectMapping(ExecutableElement dtoMethod,
+                                     String entityClassName,
+                                     String entityField,
+                                     List<SimpleDirectMapping> directMappings) {
         Messager messager = this.processingEnv.getMessager();
-
-        String errorMessage = validateEntityFieldPath(entityClassName, entityField, null);
-        if (errorMessage != null) {
-            messager.printMessage(Diagnostic.Kind.ERROR, errorMessage, dtoField);
+        if (!dtoMethod.getParameters().isEmpty()) {
+            messager.printMessage(Diagnostic.Kind.ERROR, "@Projected methods can not have parameters.", dtoMethod);
             return;
         }
 
-        boolean isCollection = isCollection(dtoField.asType());
-        String itemType = resolveRelatedType(dtoField, isCollection);
-
-        if (isCollection) {
-            DirectMapping.CollectionMetadata collectionMetadata = analyzeCollection(dtoField, itemType);
-            directMappings.add(new SimpleDirectMapping(dtoField.toString(), entityField, itemType,
-                    Optional.of(collectionMetadata)));
-        } else {
-            directMappings.add(new SimpleDirectMapping(dtoField.toString(), entityField,
-                    AnnotationProcessorUtils.getTypeNameWithoutAnnotations(dtoField.asType()),
-                    Optional.empty()));
+        String errorMessage = validateEntityFieldPath(entityClassName, entityField, null);
+        if (errorMessage != null) {
+            messager.printMessage(Diagnostic.Kind.ERROR, errorMessage, dtoMethod);
+            return;
         }
 
-        messager.printMessage(Diagnostic.Kind.NOTE, "  ✅ " + dtoField + " → " + entityField);
+        TypeMirror dtoType = dtoMethod.getReturnType();
+        String dtoName = toJavaNamingAwareFieldName(dtoMethod);
+        boolean isCollection = isCollection(dtoType);
+        String itemType = resolveRelatedType(dtoType, isCollection);
+
+        if (isCollection) {
+            DirectMapping.CollectionMetadata collectionMetadata = analyzeCollection(dtoType, itemType);
+            directMappings.add(new SimpleDirectMapping(
+                    dtoName,
+                    entityField,
+                    itemType,
+                    Optional.of(collectionMetadata))
+            );
+        } else {
+            directMappings.add(new SimpleDirectMapping(
+                    dtoName,
+                    entityField,
+                    AnnotationProcessorUtils.getTypeNameWithoutAnnotations(dtoType),
+                    Optional.empty())
+            );
+        }
+
+        messager.printMessage(Diagnostic.Kind.NOTE, "  ✅ " + dtoName + " → " + entityField);
     }
 
     /**
@@ -345,26 +371,29 @@ public class ProjectionProcessor {
      * </ul>
      *
      * @param dtoClass          the DTO type declaring the computed field
-     * @param enclosedElement   the field element representing the computed property
+     * @param methodElement     method element representing the computed property
      * @param field             the computed field metadata
      * @param errMessage        the base error message describing the mismatch
      * @param computers         the list of configured computation providers
      * @param depsToFqcnMapping a mapping of dependency paths to their fully
      *                          qualified types
      */
-    private void printComputationMethodError(TypeElement dtoClass,
-            Element enclosedElement,
+    private void printComputationMethodError(
+            TypeElement dtoClass,
+            ExecutableElement methodElement,
             SimpleComputedField field,
             String errMessage,
             List<SimpleComputationProvider> computers,
             Map<String, String> depsToFqcnMapping) {
 
-        String expectedMethodSignature = String.format("public %s %s(%s);",
-                enclosedElement.asType().toString(),
-                field.methodName != null ? field.methodName : "get" + capitalize(field.dtoField()),
+        String expectedMethodSignature = String.format(
+                "public %s %s(%s);",
+                methodElement.getReturnType().toString(),
+                field.methodName != null ? field.methodName : "to" + StringUtils.capitalize(field.dtoField()),
                 String.join(", ", Arrays.stream(field.dependencies())
                         .map(d -> depsToFqcnMapping.get(d) + " " + getLastSegment(d, "\\."))
-                        .toList()));
+                        .toList())
+        );
 
         if (field.methodClass != null) {
             computers = List.of(new SimpleComputationProvider(field.methodClass, null));
@@ -372,7 +401,7 @@ public class ProjectionProcessor {
 
         String computationProviders = computers.stream().map(SimpleComputationProvider::className)
                 .collect(Collectors.joining(", "));
-        String msg = String.format("%s \n- Source: %s \n- Providers: %s \n- Expected computer's method: %s ",
+        String msg = String.format("%s \n- Source: %s \n- Providers: %s \n- Expected computing method: %s ",
                 errMessage,
                 dtoClass.getQualifiedName(),
                 computers.isEmpty() ? "<error: undefined provider>" : computationProviders,
@@ -410,22 +439,26 @@ public class ProjectionProcessor {
      * </ul>
      *
      * @param field             the computed field descriptor
-     * @param fieldType         the expected return type of the compute method
+     * @param informativeMethod  the @Computed annotated method
      * @param computers         the list of available computation providers
      * @param depsToFqcnMapping mapping from dependency paths to their fully
      *                          qualified class names
      * @return {@code null} if a compatible compute method is found, otherwise a
      *         human-readable error message
      */
-    private String validateComputeMethod(SimpleComputedField field,
-            TypeMirror fieldType,
+    private String validateComputeMethod(
+            SimpleComputedField field,
+            ExecutableElement informativeMethod,
             List<SimpleComputationProvider> computers,
             Map<String, String> depsToFqcnMapping) {
+
+        TypeMirror fieldType = informativeMethod.getReturnType();
         Elements elements = processingEnv.getElementUtils();
         Types types = processingEnv.getTypeUtils();
 
-        final String methodName = (field.methodName != null && !field.methodName().isBlank()) ? field.methodName()
-                : "get" + capitalize(field.dtoField());
+        final String methodName = (field.methodName != null && !field.methodName().isBlank()) ?
+                field.methodName() :
+                "to" + StringUtils.capitalize(field.dtoField());
 
         if (field.methodClass != null) {
             computers = List.of(new SimpleComputationProvider(field.methodClass, null));
@@ -470,7 +503,7 @@ public class ProjectionProcessor {
                     String dependencyFqcn = depsToFqcnMapping.get(field.dependencies()[i]);
                     if (!methodParamFqcn.equals(dependencyFqcn)) {
                         return String.format(
-                                "Method %s.%s has incompatible type on parameter at position %d. Required: %s, Found: %s.",
+                                "Method %s.%s has incompatible type on parameter[%d]. Required: %s, Found: %s.",
                                 provider.className,
                                 methodName,
                                 i,
@@ -483,7 +516,7 @@ public class ProjectionProcessor {
             }
         }
 
-        return String.format("No matching provider method found for computed field '%s'.", field.dtoField());
+        return String.format("No matching provider found for @Computed method '%s'.", informativeMethod.getSimpleName());
     }
 
     /**
@@ -518,9 +551,8 @@ public class ProjectionProcessor {
      * @return the fully qualified name of the element type, or {@code null} if it
      *         cannot be determined
      */
-    private String resolveRelatedType(VariableElement field, boolean isElementCollection) {
-        TypeMirror type = field.asType();
-        if (type instanceof DeclaredType dt) {
+    private String resolveRelatedType(TypeMirror field, boolean isElementCollection) {
+        if (field instanceof DeclaredType dt) {
 
             if (!dt.getTypeArguments().isEmpty()) {
                 return AnnotationProcessorUtils.getTypeNameWithoutAnnotations(dt.getTypeArguments().getFirst());
@@ -540,9 +572,9 @@ public class ProjectionProcessor {
      * @return collection metadata describing the kind (scalar, entity, embeddable)
      *         and collection type
      */
-    private DirectMapping.CollectionMetadata analyzeCollection(VariableElement field, String elementType) {
+    private DirectMapping.CollectionMetadata analyzeCollection(TypeMirror field, String elementType) {
         CollectionKind kind = AnnotationProcessorUtils.determineCollectionKind(elementType, processingEnv);
-        CollectionType collectionType = AnnotationProcessorUtils.determineCollectionType(field.asType());
+        CollectionType collectionType = AnnotationProcessorUtils.determineCollectionType(field);
 
         return new DirectMapping.CollectionMetadata(kind, collectionType);
     }
@@ -991,29 +1023,6 @@ public class ProjectionProcessor {
             case UNKNOWN -> "java.util.Collection";
         };
         return containerClass + "<" + elementType + ">";
-    }
-
-    /**
-     * Capitalizes the first character of the given string, leaving the remainder
-     * unchanged.
-     * <p>
-     * This method is null-safe and returns the input as-is when the string is
-     * {@code null}
-     * or empty. It is typically used to build JavaBean-style accessor names from
-     * field
-     * identifiers, for example when resolving {@code getXxx} methods via
-     * reflection.
-     * </p>
-     *
-     * @param str the input string, possibly {@code null} or empty
-     * @return the capitalized string, or the original value if {@code null} or
-     *         empty
-     */
-    public static String capitalize(String str) {
-        if (str == null || str.isEmpty()) {
-            return str;
-        }
-        return str.substring(0, 1).toUpperCase() + str.substring(1);
     }
 
     public void setReferencedProjection(Set<TypeElement> projectionDtos) {

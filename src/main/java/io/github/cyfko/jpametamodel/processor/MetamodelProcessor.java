@@ -54,7 +54,9 @@ public class MetamodelProcessor extends AbstractProcessor {
         Set<String> referencedEntities = new HashSet<>();
         Set<TypeElement> projectionDtos = new HashSet<>();
         for (Element element : roundEnv.getElementsAnnotatedWith(Projection.class)) {
-            if (element.getKind() != ElementKind.CLASS) continue;
+            if (element.getKind() != ElementKind.INTERFACE) {
+                messager.printError("@Projection element must be an interface", element);
+            }
 
             TypeElement dtoClass = (TypeElement) element;
             projectionDtos.add(dtoClass);

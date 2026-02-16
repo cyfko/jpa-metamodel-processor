@@ -116,26 +116,26 @@ class ReducersValidationTest {
 
                         public class CompanyComputers {
                             // For single collection dependency
-                            public static BigDecimal getTotalBudget(BigDecimal budget) {
+                            public static BigDecimal toTotalBudget(BigDecimal budget) {
                                 return budget;
                             }
 
                             // For multiple collection dependencies
-                            public static BigDecimal getTotalCost(BigDecimal budget, BigDecimal salary) {
+                            public static BigDecimal toTotalCost(BigDecimal budget, BigDecimal salary) {
                                 return budget.add(salary);
                             }
 
-                            public static BigDecimal getStats(BigDecimal budget, BigDecimal salary) {
+                            public static BigDecimal toStats(BigDecimal budget, BigDecimal salary) {
                                 return budget.add(salary);
                             }
 
                             // For mixed scalar + collection
-                            public static String getSummary(String name, BigDecimal budget) {
+                            public static String toSummary(String name, BigDecimal budget) {
                                 return name + ": " + budget;
                             }
 
                             // For scalar nested path
-                            public static String getLocation(String city, String country) {
+                            public static String toLocation(String city, String country) {
                                 return city + ", " + country;
                             }
                         }
@@ -154,9 +154,9 @@ class ReducersValidationTest {
                         import java.math.BigDecimal;
 
                         @Projection(from = Company.class, providers = @Provider(CompanyComputers.class))
-                        public class CompanyDTO {
+                        public interface CompanyDTO {
                             @Computed(dependsOn = {"departments.budget"})
-                            private BigDecimal totalBudget;
+                            BigDecimal getTotalBudget();
                         }
                         """);
 
@@ -179,9 +179,9 @@ class ReducersValidationTest {
                         import java.math.BigDecimal;
 
                         @Projection(from = Company.class, providers = @Provider(CompanyComputers.class))
-                        public class CompanyDTO {
+                        public interface CompanyDTO {
                             @Computed(dependsOn = {"departments.budget"}, reducers = {"SUM"})
-                            private BigDecimal totalBudget;
+                            BigDecimal getTotalBudget();
                         }
                         """);
 
@@ -205,12 +205,12 @@ class ReducersValidationTest {
                         import java.math.BigDecimal;
 
                         @Projection(from = Company.class, providers = @Provider(CompanyComputers.class))
-                        public class CompanyDTO {
+                        public interface CompanyDTO {
                             @Computed(
                                 dependsOn = {"departments.budget", "departments.employees.salary"},
                                 reducers = {"SUM"}
                             )
-                            private BigDecimal totalCost;
+                            BigDecimal getTotalCost();
                         }
                         """);
 
@@ -233,12 +233,12 @@ class ReducersValidationTest {
                         import java.math.BigDecimal;
 
                         @Projection(from = Company.class, providers = @Provider(CompanyComputers.class))
-                        public class CompanyDTO {
+                        public interface CompanyDTO {
                             @Computed(
                                 dependsOn = {"departments.budget", "departments.employees.salary"},
                                 reducers = {"SUM", "AVG"}
                             )
-                            private BigDecimal totalCost;
+                            BigDecimal getTotalCost();
                         }
                         """);
 
@@ -261,9 +261,9 @@ class ReducersValidationTest {
                         import io.github.cyfko.projection.*;
 
                         @Projection(from = Company.class, providers = @Provider(CompanyComputers.class))
-                        public class CompanyDTO {
+                        public interface CompanyDTO {
                             @Computed(dependsOn = {"headquarters.city", "headquarters.country"})
-                            private String location;
+                            String getLocation();
                         }
                         """);
 
@@ -288,12 +288,12 @@ class ReducersValidationTest {
                         import java.math.BigDecimal;
 
                         @Projection(from = Company.class, providers = @Provider(CompanyComputers.class))
-                        public class CompanyDTO {
+                        public interface CompanyDTO {
                             @Computed(
                                 dependsOn = {"name", "departments.budget"},
                                 reducers = {"SUM"}
                             )
-                            private String summary;
+                            String getSummary();
                         }
                         """);
 
@@ -318,9 +318,9 @@ class ReducersValidationTest {
                         import java.math.BigDecimal;
 
                         @Projection(from = Company.class, providers = @Provider(CompanyComputers.class))
-                        public class CompanyDTO {
+                        public interface CompanyDTO {
                             @Computed(dependsOn = {"departments.budget"}, reducers = {"SUM"})
-                            private BigDecimal totalBudget;
+                            BigDecimal getTotalBudget();
                         }
                         """);
 
@@ -354,12 +354,12 @@ class ReducersValidationTest {
                         import java.math.BigDecimal;
 
                         @Projection(from = Company.class, providers = @Provider(CompanyComputers.class))
-                        public class CompanyDTO {
+                        public interface CompanyDTO {
                             @Computed(
                                 dependsOn = {"departments.budget", "departments.employees.salary"},
                                 reducers = {"SUM", "AVG"}
                             )
-                            private BigDecimal stats;
+                            BigDecimal getStats();
                         }
                         """);
 

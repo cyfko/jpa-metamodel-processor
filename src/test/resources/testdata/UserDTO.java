@@ -7,67 +7,27 @@ import io.github.cyfko.projection.Projection;
 
 import java.util.List;
 
-@Projection(from = User.class, providers = {
-        @Provider(value = TestComputationProvider.class, bean = "myBean")
-})
-public class UserDTO {
-
+@Projection(
+        from = User.class,
+        providers = @Provider(value = TestComputationProvider.class, bean = "myBean")
+)
+public interface UserDTO {
+    // Getters and setters
     @Projected(from = "email")
-    private String userEmail;
+    public String getUserEmail();
 
     @Projected(from = "address.city")
-    private String city;
+    public String getCity();
 
     @Projected(from = "department.name")
-    private String departmentName;
-
-    @Projected(from = "orders")
-    private List<OrderDTO> orders;
+    public String getDepartmentName();
 
     @Computed(dependsOn = { "firstName", "lastName" })
-    private String fullName;
+    public String getFullName();
 
     @Computed(dependsOn = { "birthDate" })
-    private Integer age; // Computed
+    public Integer getAge();
 
-    // Getters and setters
-    public String getUserEmail() {
-        return userEmail;
-    }
-
-    public void setUserEmail(String userEmail) {
-        this.userEmail = userEmail;
-    }
-
-    public String getCity() {
-        return city;
-    }
-
-    public void setCity(String city) {
-        this.city = city;
-    }
-
-    public String getDepartmentName() {
-        return departmentName;
-    }
-
-    public void setDepartmentName(String departmentName) {
-        this.departmentName = departmentName;
-    }
-
-    public String getFullName() {
-        return fullName;
-    }
-
-    public void setFullName(String fullName) {
-        this.fullName = fullName;
-    }
-
-    public Integer getAge() {
-        return age;
-    }
-
-    public void setAge(Integer age) {
-        this.age = age;
-    }
+    @Projected(from = "orders")
+    public List<OrderDTO> getOrders();
 }

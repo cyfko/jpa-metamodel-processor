@@ -10,72 +10,23 @@ import java.math.BigDecimal;
 @Projection(from = Order.class, providers = {
         @Provider(value = TestComputationProvider.class, bean = "myBean")
 })
-public class OrderSummaryDTO {
+public interface OrderSummaryDTO {
 
     @Projected(from = "orderNumber")
-    private String orderNumber;
+    String getOrderNumber();
 
     @Projected(from = "totalAmount")
-    private BigDecimal totalAmount;
+    BigDecimal getTotalAmount();
 
     @Projected(from = "status")
-    private Order.OrderStatus status;
+    Order.OrderStatus getStatus();
 
     @Projected(from = "user.email")
-    private String customerEmail;
+    String getCustomerEmail();
 
     @Computed(dependsOn = { "user.firstName", "user.lastName" })
-    private String customerName;
+    String getCustomerName();
 
     @Computed(dependsOn = { "totalAmount" })
-    private String formattedAmount;
-
-    // Getters and setters
-    public String getOrderNumber() {
-        return orderNumber;
-    }
-
-    public void setOrderNumber(String orderNumber) {
-        this.orderNumber = orderNumber;
-    }
-
-    public BigDecimal getTotalAmount() {
-        return totalAmount;
-    }
-
-    public void setTotalAmount(BigDecimal totalAmount) {
-        this.totalAmount = totalAmount;
-    }
-
-    public Order.OrderStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(Order.OrderStatus status) {
-        this.status = status;
-    }
-
-    public String getCustomerEmail() {
-        return customerEmail;
-    }
-
-    public void setCustomerEmail(String customerEmail) {
-        this.customerEmail = customerEmail;
-    }
-
-    public String getCustomerName() {
-        return customerName;
-    }
-
-    public void setCustomerName(String customerName) {
-        this.customerName = customerName;
-    }
-
-    public String getFormattedAmount() {
-        return formattedAmount;
-    }
-
-    public void setFormattedAmount(String formattedAmount) {
-        this.formattedAmount = formattedAmount;
-    }
+    String getFormattedAmount();
 }

@@ -50,9 +50,9 @@ class ComputedByTest {
             package io.github.cyfko.example;
             import io.github.cyfko.projection.*;
             @Projection(from = User.class)
-            public class UserDTO {
+            public interface UserDTO {
                 @Computed(dependsOn = {"firstName", "lastName"}, computedBy = @Method(value = "joinNames", type = ExternalComputer.class))
-                private String displayName;
+                String getDisplayName();
             }
             """
         );
@@ -68,7 +68,7 @@ class ComputedByTest {
             public static String buildUserDisplayName(String first, String last) {
                 return first + "-" + last;
             }
-            public static String getFullName(String first, String last) {
+            public static String toFullName(String first, String last) {
                 return first + " " + last;
             }
         }
@@ -97,9 +97,9 @@ class ComputedByTest {
             package io.github.cyfko.example;
             import io.github.cyfko.projection.*;
             @Projection(from = User.class, providers = {@Provider(UserComputations.class)})
-            public class UserDTO {
+            public interface UserDTO {
                 @Computed(dependsOn = {"firstName", "lastName"}, computedBy = @Method("buildUserDisplayName"))
-                private String displayName;
+                String getDisplayName();
             }
             """
         );
@@ -131,9 +131,9 @@ class ComputedByTest {
             package io.github.cyfko.example;
             import io.github.cyfko.projection.*;
             @Projection(from = User.class, providers = {@Provider(UserComputations.class)})
-            public class UserDTO {
+            public interface UserDTO {
                 @Computed(dependsOn = {"firstName", "lastName"}, computedBy = @Method(value = "buildUserDisplayName", type = UserComputations.class))
-                private String displayName;
+                String getDisplayName();
             }
             """
         );
@@ -164,9 +164,9 @@ class ComputedByTest {
             package io.github.cyfko.example;
             import io.github.cyfko.projection.*;
             @Projection(from = User.class, providers = {@Provider(UserComputations.class)})
-            public class UserDTO {
+            public interface UserDTO {
                 @Computed(dependsOn = {"firstName", "lastName"}, computedBy = @Method(type = UserComputations.class))
-                private String fullName;
+                String getFullName();
             }
             """
         );
@@ -197,9 +197,9 @@ class ComputedByTest {
             package io.github.cyfko.example;
             import io.github.cyfko.projection.*;
             @Projection(from = User.class, providers = {@Provider(UserComputations.class)})
-            public class UserDTO {
+            public interface UserDTO {
                 @Computed(dependsOn = {"firstName", "lastName"}, computedBy = @Method("doesNotExist"))
-                private String displayName;
+                String getDisplayName();
             }
             """
         );

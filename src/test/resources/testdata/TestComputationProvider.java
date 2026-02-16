@@ -5,19 +5,19 @@ import java.time.LocalDate;
 
 public class TestComputationProvider {
 
-    public static String getFullName(String firstName, String lastName) {
+    public static String toFullName(String firstName, String lastName) {
         return null;
     }
 
-    public Integer getAge(LocalDate bithDate) {
+    public Integer toAge(LocalDate bithDate) {
         return null;
     }
 
-    public String getCustomerName(String firstName, String lastName){
+    public String toCustomerName(String firstName, String lastName){
         return null;
     }
 
-    public static String getFormattedAmount(BigDecimal totalAmount){
+    public static String toFormattedAmount(BigDecimal totalAmount){
         return null;
     }
 }

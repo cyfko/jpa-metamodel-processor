@@ -46,8 +46,8 @@ public class EntityProcessorTest {
                     import io.github.cyfko.projection.Projection;
 
                     @Projection(from=com.example.User.class)
-                    public class UserDTO {
-                        private String name;
+                    public interface UserDTO {
+                        String getName();
                     }
                 """);
 
@@ -140,8 +140,8 @@ public class EntityProcessorTest {
                     import io.github.cyfko.projection.Projection;
 
                     @Projection(from=com.example.Invoice.class)
-                    public class InvoiceDTO {
-                        private String label;
+                    public interface InvoiceDTO {
+                        String getLabel();
                     }
                 """);
 
@@ -204,8 +204,8 @@ public class EntityProcessorTest {
                     import io.github.cyfko.projection.Projection;
 
                     @Projection(from=com.example.Invoice.class)
-                    public class InvoiceDTO {
-                        private String label;
+                    public interface InvoiceDTO {
+                        String getLabel();
                     }
                 """);
 
@@ -250,8 +250,8 @@ public class EntityProcessorTest {
                     import io.github.cyfko.projection.Projection;
 
                     @Projection(from=com.example.Invoice.class)
-                    public class InvoiceDTO {
-                        private Long id;
+                    public interface InvoiceDTO {
+                        Long getId();
                     }
                 """);
 
@@ -328,8 +328,8 @@ public class EntityProcessorTest {
                     import io.github.cyfko.projection.Projection;
 
                     @Projection(from=com.example.OrderItem.class)
-                    public class OrderItemDTO {
-                        private Long orderId;
+                    public interface OrderItemDTO {
+                        Long orderId();
                     }
                 """);
 
@@ -408,8 +408,8 @@ public class EntityProcessorTest {
                     import io.github.cyfko.projection.Projection;
 
                     @Projection(from=com.example.Customer.class)
-                    public class CustomerDTO {
-                        private String loyaltyCode;
+                    public interface CustomerDTO {
+                        String loyaltyCode();
                     }
                 """);
 
@@ -461,8 +461,8 @@ public class EntityProcessorTest {
                     import io.github.cyfko.projection.Projection;
 
                     @Projection(from=com.example.NoIdEntity.class)
-                    public class NoIdEntityDTO {
-                        private String name;
+                    public interface NoIdEntityDTO {
+                        String name();
                     }
                 """);
 
@@ -494,8 +494,8 @@ public class EntityProcessorTest {
                     import io.github.cyfko.projection.Projection;
 
                     @Projection(from=com.example.MultiIdEntity.class)
-                    public class MultiIdEntityDTO {
-                        private Long id1;
+                    public interface MultiIdEntityDTO {
+                        Long id1();
                     }
                 """);
 
@@ -543,8 +543,8 @@ public class EntityProcessorTest {
                     import io.github.cyfko.projection.Projection;
 
                     @Projection(from=com.example.Customer.class)
-                    public class CustomerDTO {
-                        private Long id;
+                    public interface CustomerDTO {
+                        Long id();
                     }
                 """);
 
@@ -672,8 +672,8 @@ public class EntityProcessorTest {
                     import io.github.cyfko.projection.Projection;
 
                     @Projection(from=com.example.Order.class)
-                    public class OrderDTO {
-                        private Long id;
+                    public interface OrderDTO {
+                        Long id();
                     }
                 """);
 
@@ -779,9 +779,9 @@ public class EntityProcessorTest {
                     import java.util.Set;
 
                     @Projection(from=com.example.Customer.class)
-                    public class CustomerDTO {
-                        private Long id;
-                        private Set<String> tags;
+                    public interface CustomerDTO {
+                        Long id();
+                        Set<String> tags();
                     }
                 """);
 
@@ -878,8 +878,8 @@ public class EntityProcessorTest {
                     import io.github.cyfko.projection.Projection;
 
                     @Projection(from=com.example.Author.class)
-                    public class AuthorDTO {
-                        private Long id;
+                    public interface AuthorDTO {
+                        Long id();
                     }
                 """);
 
@@ -972,8 +972,8 @@ public class EntityProcessorTest {
                     import io.github.cyfko.projection.Projection;
 
                     @Projection(from=com.example.Task.class)
-                    public class TaskDTO {
-                        private Long id;
+                    public interface TaskDTO {
+                        Long id();
                     }
                 """);
 
@@ -1036,9 +1036,9 @@ public class EntityProcessorTest {
                     import io.github.cyfko.projection.Projection;
 
                     @Projection(from=com.example.TestEntity.class)
-                    public class TestEntityDTO {
-                        private Long id;
-                        private String name;
+                    public interface TestEntityDTO {
+                        Long id();
+                        String name();
                     }
                 """);
 
@@ -1093,8 +1093,8 @@ public class EntityProcessorTest {
                     import io.github.cyfko.projection.Projection;
 
                     @Projection(from=com.example.EntityWithStatic.class)
-                    public class EntityWithStaticDTO {
-                        private String name;
+                    public interface EntityWithStaticDTO {
+                        String name();
                     }
                 """);
 
@@ -1174,8 +1174,8 @@ public class EntityProcessorTest {
                     import io.github.cyfko.projection.Projection;
 
                     @Projection(from=com.example.AnnotatedEntity.class)
-                    public class AnnotatedEntityDTO {
-                        private String name;
+                    public interface AnnotatedEntityDTO {
+                        String name();
                     }
                 """);
 

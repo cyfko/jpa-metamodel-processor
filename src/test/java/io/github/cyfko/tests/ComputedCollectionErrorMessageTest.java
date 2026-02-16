@@ -86,7 +86,7 @@ class ComputedCollectionErrorMessageTest {
 
                         public class UserComputations {
                             // Wrong: entity has List<Order>, but method expects Set<Order>
-                            public static Integer getOrderCount(Set<Order> orders) {
+                            public static Integer toOrderCount(Set<Order> orders) {
                                 return orders != null ? orders.size() : 0;
                             }
                         }
@@ -102,9 +102,9 @@ class ComputedCollectionErrorMessageTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"orders"})
-                            private Integer orderCount;
+                            Integer getOrderCount();
                         }
                         """);
 
@@ -136,7 +136,7 @@ class ComputedCollectionErrorMessageTest {
 
                         public class UserComputations {
                             // Wrong: entity has List<Order>, but method expects List<String>
-                            public static Integer getOrderCount(List<String> orders) {
+                            public static Integer toOrderCount(List<String> orders) {
                                 return orders != null ? orders.size() : 0;
                             }
                         }
@@ -152,9 +152,9 @@ class ComputedCollectionErrorMessageTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"orders"})
-                            private Integer orderCount;
+                            Integer getOrderCount();
                         }
                         """);
 
@@ -185,7 +185,7 @@ class ComputedCollectionErrorMessageTest {
                         import java.util.List;
 
                         public class UserComputations {
-                            // Wrong method name: should be getOrderCount, not computeOrderCount
+                            // Wrong method name: should be toOrderCount, not computeOrderCount
                             public static Integer computeOrderCount(List<Order> orders) {
                                 return orders != null ? orders.size() : 0;
                             }
@@ -202,9 +202,9 @@ class ComputedCollectionErrorMessageTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"orders"})
-                            private Integer orderCount;
+                            Integer getOrderCount();
                         }
                         """);
 
@@ -215,10 +215,10 @@ class ComputedCollectionErrorMessageTest {
         assertThat(compilation).failed();
         // Error should indicate no matching method and show expected signature with
         // collection type
-        assertThat(compilation).hadErrorContaining("No matching provider method found");
-        assertThat(compilation).hadErrorContaining("orderCount");
-        assertThat(compilation).hadErrorContaining("Expected computer's method");
-        assertThat(compilation).hadErrorContaining("java.util.List<io.github.cyfko.example.Order>");
+        assertThat(compilation).hadErrorContaining("No matching provider found for @Computed method 'getOrderCount'");
+        assertThat(compilation).hadErrorContaining("Source: io.github.cyfko.example.UserDTO");
+        assertThat(compilation).hadErrorContaining("Providers: io.github.cyfko.example.UserComputations");
+        assertThat(compilation).hadErrorContaining("Expected computing method: public java.lang.Integer toOrderCount(java.util.List<io.github.cyfko.example.Order> orders);");
     }
 
     // ==================== Test 4: Wrong Return Type with Collection Dependency
@@ -237,7 +237,7 @@ class ComputedCollectionErrorMessageTest {
 
                         public class UserComputations {
                             // Wrong return type: should be Integer, not String
-                            public static String getOrderCount(List<Order> orders) {
+                            public static String toOrderCount(List<Order> orders) {
                                 return orders != null ? String.valueOf(orders.size()) : "0";
                             }
                         }
@@ -253,9 +253,9 @@ class ComputedCollectionErrorMessageTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"orders"})
-                            private Integer orderCount;
+                            Integer getOrderCount();
                         }
                         """);
 
@@ -298,9 +298,9 @@ class ComputedCollectionErrorMessageTest {
                             from = User.class,
                             providers = {@Provider(MyCustomComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"orders"})
-                            private Integer orderCount;
+                            Integer getOrderCount();
                         }
                         """);
 
@@ -342,9 +342,9 @@ class ComputedCollectionErrorMessageTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class MySpecialUserDTO {
+                        public interface MySpecialUserDTO {
                             @Computed(dependsOn = {"orders"})
-                            private Integer orderCount;
+                            Integer getOrderCount();
                         }
                         """);
 
@@ -374,7 +374,7 @@ class ComputedCollectionErrorMessageTest {
 
                         public class UserComputations {
                             // Wrong: second param should be String, not Integer
-                            public static String getUserSummary(String firstName, Integer lastName, List<Order> orders) {
+                            public static String toUserSummary(String firstName, Integer lastName, List<Order> orders) {
                                 return firstName;
                             }
                         }
@@ -390,9 +390,9 @@ class ComputedCollectionErrorMessageTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"firstName", "lastName", "orders"})
-                            private String userSummary;
+                            String getUserSummary();
                         }
                         """);
 
@@ -402,9 +402,9 @@ class ComputedCollectionErrorMessageTest {
 
         assertThat(compilation).failed();
         // Error should show the specific parameter position with type mismatch
-        assertThat(compilation).hadErrorContaining("incompatible type on parameter at position 1");
-        assertThat(compilation).hadErrorContaining("java.lang.String");
-        assertThat(compilation).hadErrorContaining("java.lang.Integer");
+        assertThat(compilation).hadErrorContaining("Method io.github.cyfko.example.UserComputations.toUserSummary has incompatible type on parameter[1]");
+        assertThat(compilation).hadErrorContaining("Required: java.lang.String");
+        assertThat(compilation).hadErrorContaining("Found: java.lang.Integer");
     }
 
     // ==================== Test 8: Expected Signature Shows Collection Parameter
@@ -435,9 +435,9 @@ class ComputedCollectionErrorMessageTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"orders"})
-                            private Integer orderCount;
+                            Integer getOrderCount();
                         }
                         """);
 
@@ -448,7 +448,7 @@ class ComputedCollectionErrorMessageTest {
         assertThat(compilation).failed();
         // The expected signature should show: getOrderCount(java.util.List<...Order>
         // orders)
-        assertThat(compilation).hadErrorContaining("Expected computer's method:");
+        assertThat(compilation).hadErrorContaining("Expected computing method:");
         assertThat(compilation).hadErrorContaining("getOrderCount");
         assertThat(compilation).hadErrorContaining("java.util.List<io.github.cyfko.example.Order> orders");
     }
@@ -514,9 +514,9 @@ class ComputedCollectionErrorMessageTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"department.employees"})
-                            private Integer colleagueCount;
+                            Integer getColleagueCount();
                         }
                         """);
 
@@ -560,9 +560,9 @@ class ComputedCollectionErrorMessageTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"firstName", "lastName", "orders"})
-                            private String userSummary;
+                            String getUserSummary();
                         }
                         """);
 

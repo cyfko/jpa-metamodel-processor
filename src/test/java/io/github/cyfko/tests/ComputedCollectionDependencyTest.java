@@ -161,7 +161,7 @@ class ComputedCollectionDependencyTest {
                         import java.util.List;
 
                         public class UserComputations {
-                            public static Integer getOrderCount(List<Order> orders) {
+                            public static Integer toOrderCount(List<Order> orders) {
                                 return orders != null ? orders.size() : 0;
                             }
                         }
@@ -177,9 +177,9 @@ class ComputedCollectionDependencyTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"orders"})
-                            private Integer orderCount;
+                            Integer getOrderCount();
                         }
                         """);
 
@@ -208,7 +208,7 @@ class ComputedCollectionDependencyTest {
                         import java.util.Set;
 
                         public class UserComputations {
-                            public static String getTagsSummary(Set<String> tags) {
+                            public static String toTagsSummary(Set<String> tags) {
                                 return tags != null ? String.join(", ", tags) : "";
                             }
                         }
@@ -224,9 +224,9 @@ class ComputedCollectionDependencyTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"tags"})
-                            private String tagsSummary;
+                            String getTagsSummary();
                         }
                         """);
 
@@ -255,7 +255,7 @@ class ComputedCollectionDependencyTest {
                         import java.util.List;
 
                         public class UserComputations {
-                            public static Integer getColleagueCount(List<User> employees) {
+                            public static Integer toColleagueCount(List<User> employees) {
                                 return employees != null ? employees.size() : 0;
                             }
                         }
@@ -271,9 +271,9 @@ class ComputedCollectionDependencyTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"department.employees"})
-                            private Integer colleagueCount;
+                            Integer getColleagueCount();
                         }
                         """);
 
@@ -302,7 +302,7 @@ class ComputedCollectionDependencyTest {
                         import java.util.List;
 
                         public class CompanyComputations {
-                            public static Integer getTotalEmployeeCount(List<Department> departments) {
+                            public static Integer toTotalEmployeeCount(List<Department> departments) {
                                 if (departments == null) return 0;
                                 return departments.stream()
                                     .mapToInt(dept -> dept != null ? 1 : 0) // Simplified
@@ -321,9 +321,9 @@ class ComputedCollectionDependencyTest {
                             from = Company.class,
                             providers = {@Provider(CompanyComputations.class)}
                         )
-                        public class CompanyDTO {
+                        public interface CompanyDTO {
                             @Computed(dependsOn = {"departments"})
-                            private Integer totalEmployeeCount;
+                            Integer getTotalEmployeeCount();
                         }
                         """);
 
@@ -352,7 +352,7 @@ class ComputedCollectionDependencyTest {
                         import java.util.List;
 
                         public class DepartmentComputations {
-                            public static Integer getSiblingDepartmentCount(List<Department> departments) {
+                            public static Integer toSiblingDepartmentCount(List<Department> departments) {
                                 return departments != null ? departments.size() : 0;
                             }
                         }
@@ -368,9 +368,9 @@ class ComputedCollectionDependencyTest {
                             from = Department.class,
                             providers = {@Provider(DepartmentComputations.class)}
                         )
-                        public class DepartmentDTO {
+                        public interface DepartmentDTO {
                             @Computed(dependsOn = {"company.departments"})
-                            private Integer siblingDepartmentCount;
+                            Integer getSiblingDepartmentCount();
                         }
                         """);
 
@@ -399,7 +399,7 @@ class ComputedCollectionDependencyTest {
                         import java.util.List;
 
                         public class UserComputations {
-                            public static String getUserSummary(String firstName, String lastName, List<Order> orders) {
+                            public static String toUserSummary(String firstName, String lastName, List<Order> orders) {
                                 int count = orders != null ? orders.size() : 0;
                                 return firstName + " " + lastName + " (" + count + " orders)";
                             }
@@ -416,9 +416,9 @@ class ComputedCollectionDependencyTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"firstName", "lastName", "orders"})
-                            private String userSummary;
+                            String getUserSummary();
                         }
                         """);
 
@@ -464,9 +464,9 @@ class ComputedCollectionDependencyTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"orders"})
-                            private Integer orderCount;
+                            Integer getOrderCount();
                         }
                         """);
 
@@ -475,7 +475,7 @@ class ComputedCollectionDependencyTest {
                 .compile(user, order, orderItem, department, company, computer, dto);
 
         assertThat(compilation).failed();
-        assertThat(compilation).hadErrorContaining("incompatible type on parameter");
+        assertThat(compilation).hadErrorContaining("No matching provider found for @Computed method 'getOrderCount'");
     }
 
     // ==================== Test 8: Invalid Collection Path Fails
@@ -512,9 +512,9 @@ class ComputedCollectionDependencyTest {
                             from = User.class,
                             providers = {@Provider(UserComputations.class)}
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"nonExistentCollection"})
-                            private Integer nonExistentCount;
+                            Integer getNonExistentCount();
                         }
                         """);
 

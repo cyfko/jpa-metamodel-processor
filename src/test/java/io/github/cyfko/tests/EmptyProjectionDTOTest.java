@@ -43,7 +43,7 @@ class EmptyProjectionDTOTest {
                         import io.github.cyfko.projection.*;
 
                         @Projection(from = User.class)
-                        public class EmptyUserDTO {
+                        public interface EmptyUserDTO {
                             // No fields at all - empty projection
                         }
                         """);
@@ -80,7 +80,7 @@ class EmptyProjectionDTOTest {
                         import io.github.cyfko.projection.*;
 
                         @Projection(from = User.class)
-                        public class EmptyUserDTO {
+                        public interface EmptyUserDTO {
                             // No fields at all
                         }
                         """);
@@ -130,7 +130,7 @@ class EmptyProjectionDTOTest {
                         import io.github.cyfko.projection.*;
 
                         @Projection(from = User.class)
-                        public class EmptyUserDTO {
+                        public interface EmptyUserDTO {
                             // No fields at all
                         }
                         """);

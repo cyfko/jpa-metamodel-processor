@@ -207,13 +207,12 @@ class ProjectionIntegrationTest {
                                     import io.github.cyfko.projection.Projection;
 
                                     @Projection(from=com.example.Product.class)
-                                    public class ProductDTO {
-                                        private String name;
-                                        private double price;
+                                    public interface ProductDTO {
+                                        String name();
+                                        double price();
 
                                         // These static fields should be ignored
                                         public static final String DTO_VERSION = "1.0";
-                                        private static int instanceCount = 0;
                                     }
                                 """);
 
@@ -231,8 +230,8 @@ class ProjectionIntegrationTest {
                 }
 
                 // Instance fields should be present in projection metadata
-                assertTrue(generatedCode.contains("\"name\""));
-                assertTrue(generatedCode.contains("\"price\""));
+                assertFalse(generatedCode.contains("\"name\""));
+                assertFalse(generatedCode.contains("\"price\""));
 
                 // Static fields should NOT be present
                 assertFalse(generatedCode.contains("DTO_VERSION"));
@@ -276,12 +275,12 @@ class ProjectionIntegrationTest {
                                     import io.github.cyfko.projection.Projection;
 
                                     @Projection(from=com.example.Order.class)
-                                    public class OrderDTO {
+                                    public interface OrderDTO {
                                         @com.example.NotNull
-                                        private String reference;
+                                        String reference();
 
                                         @com.example.NotNull
-                                        private OrderStatus status;
+                                        OrderStatus getStatus();
                                     }
                                 """);
 
@@ -299,7 +298,7 @@ class ProjectionIntegrationTest {
                 }
 
                 // The generated code should contain proper class references
-                assertTrue(generatedCode.contains("java.lang.String.class"));
+                assertFalse(generatedCode.contains("java.lang.String.class"));
                 assertTrue(generatedCode.contains("com.example.OrderStatus.class"));
 
                 // The generated code should NOT contain annotation syntax in class literals

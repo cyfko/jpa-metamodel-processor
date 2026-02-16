@@ -35,9 +35,9 @@ class ProjectionValidationTest {
                         import io.github.cyfko.projection.*;
 
                         @Projection(from = User.class)
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Projected(from = "nonExistentField")
-                            private String field;
+                            String field();
                         }
                         """);
 
@@ -72,9 +72,9 @@ class ProjectionValidationTest {
                         import io.github.cyfko.projection.*;
 
                         @Projection(from = User.class)
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Projected(from = "name.something")
-                            private String field;
+                            String field();
                         }
                         """);
 
@@ -111,9 +111,9 @@ class ProjectionValidationTest {
                         @Projection(
                             from = User.class
                         )
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Computed(dependsOn = {"nonExistent"})
-                            private String computed;
+                            String getComputed();
                         }
                         """);
 
@@ -185,12 +185,12 @@ class ProjectionValidationTest {
                         import io.github.cyfko.projection.*;
 
                         @Projection(from = User.class)
-                        public class UserDTO {
+                        public interface UserDTO {
                             @Projected(from = "address.city")
-                            private String city;
+                            String getCity();
 
                             @Projected(from = "address.zipCode")
-                            private String zipCode;
+                            String getZipCode();
                         }
                         """);
 

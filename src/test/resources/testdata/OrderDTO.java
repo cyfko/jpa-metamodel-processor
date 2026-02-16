@@ -6,29 +6,11 @@ import io.github.cyfko.projection.Projection;
 import java.math.BigDecimal;
 
 @Projection(from = Order.class)
-public class OrderDTO {
+public interface OrderDTO {
+    Long getId();
 
-    private Long id;
-
-    private String orderNumber;
+    String getOrderNumber();
 
     @Projected(from = "totalAmount")
-    private BigDecimal amount;
-
-    // Getters and setters
-    public String getOrderNumber() {
-        return orderNumber;
-    }
-
-    public void setOrderNumber(String orderNumber) {
-        this.orderNumber = orderNumber;
-    }
-
-    public BigDecimal getAmount() {
-        return amount;
-    }
-
-    public void setAmount(BigDecimal amount) {
-        this.amount = amount;
-    }
+    BigDecimal getAmount();
 }
