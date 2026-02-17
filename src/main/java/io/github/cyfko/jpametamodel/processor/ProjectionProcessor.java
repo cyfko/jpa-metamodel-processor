@@ -186,6 +186,7 @@ public class ProjectionProcessor {
                 null);
 
         // Process fields
+        final String dtoFqcn = dtoClass.getQualifiedName().toString();
         for (Element enclosedElement : dtoClass.getEnclosedElements()) {
             if (enclosedElement.getKind() != ElementKind.METHOD)
                 continue;
@@ -251,10 +252,10 @@ public class ProjectionProcessor {
                         String computedByClass = computedBy != null ? (String) computedBy.get("type") : null;
                         String computedByMethod = computedBy != null ? (String) computedBy.get("value") : null;
 
-                        // Backward compatibility
-                        if (computedByMethod == null && computedBy != null) {
-                            computedByMethod = (String) computedBy.get("method");
-                        }
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> thenProp = (Map<String, Object>) params.get("then");
+                        String thenClass = thenProp != null ? (String) thenProp.get("type") : null;
+                        String thenMethod = thenProp != null ? (String) thenProp.get("value") : null;
 
                         // Extract reducers
                         @SuppressWarnings("unchecked")
@@ -286,11 +287,15 @@ public class ProjectionProcessor {
                                 reducerIndices,
                                 reducerNames,
                                 computedByClass,
-                                computedByMethod);
-                        String errMessage = validateComputeMethod(field, methodElement, computers, depsToFqcnMapping);
-                        if (errMessage != null) {
-                            printComputationMethodError(dtoClass, methodElement, field, errMessage, computers,
-                                    depsToFqcnMapping);
+                                computedByMethod,
+                                thenClass,
+                                thenMethod
+                        );
+
+                        try {
+                            field = validateComputeMethodWithTransformation(field, methodElement, computers, depsToFqcnMapping);
+                        } catch (Exception e) {
+                            printComputationMethodError(dtoClass, methodElement, field, e.getMessage(), computers, depsToFqcnMapping);
                             return;
                         }
 
@@ -311,7 +316,7 @@ public class ProjectionProcessor {
                 computedFields,
                 computers.toArray(SimpleComputationProvider[]::new));
 
-        projectionRegistry.put(dtoClass.getQualifiedName().toString(), metadata);
+        projectionRegistry.put(dtoFqcn, metadata);
     }
 
     /**
@@ -395,13 +400,13 @@ public class ProjectionProcessor {
         String expectedMethodSignature = String.format(
                 "public %s %s(%s);",
                 methodElement.getReturnType().toString(),
-                field.methodName != null ? field.methodName : "to" + StringUtils.capitalize(field.dtoField()),
+                field.computedByMethod != null ? field.computedByMethod : "to" + StringUtils.capitalize(field.dtoField()),
                 String.join(", ", Arrays.stream(field.dependencies())
                         .map(d -> depsToFqcnMapping.get(d) + " " + getLastSegment(d, "\\."))
                         .toList()));
 
-        if (field.methodClass != null) {
-            computers = List.of(new SimpleComputationProvider(field.methodClass, null));
+        if (field.computedByClass != null) {
+            computers = List.of(new SimpleComputationProvider(field.computedByClass, null));
         }
 
         String computationProviders = computers.stream().map(SimpleComputationProvider::className)
@@ -429,19 +434,275 @@ public class ProjectionProcessor {
     }
 
     /**
+     * Result of method validation, containing both computedBy and optional then methods.
+     */
+    record ValidationResult(
+            ExecutableElement computedByMethod,
+            ExecutableElement thenMethod,  // null if no transformation
+            String errorMessage
+    ) {
+        boolean isValid() {
+            return errorMessage == null;
+        }
+    }
+
+    /**
+     * Validates that compute and transformation methods exist for the given computed field.
+     * <p>
+     * Validation covers two stages:
+     * </p>
+     * <ol>
+     *   <li><b>computedBy method:</b>
+     *     <ul>
+     *       <li>Method name convention: {@code to[FieldName]} or explicit</li>
+     *       <li>Parameter count matches dependencies</li>
+     *       <li>Parameter types match dependency types</li>
+     *       <li>Return type matches field type OR then parameter type (if then is specified)</li>
+     *     </ul>
+     *   </li>
+     *   <li><b>then method (if specified):</b>
+     *     <ul>
+     *       <li>Method name must be explicit (no convention)</li>
+     *       <li>Must be static (pure function)</li>
+     *       <li>Must accept exactly one parameter (computedBy return type)</li>
+     *       <li>Return type must match field type</li>
+     *     </ul>
+     *   </li>
+     * </ol>
+     *
+     * @param field             the computed field descriptor
+     * @param informativeMethod the @Computed annotated method
+     * @param providers         the list of available computation providers
+     * @param depsToFqcnMapping mapping from dependency paths to their FQCNs
+     * @return ValidationResult containing resolved methods or error message
+     */
+    private SimpleComputedField validateComputeMethodWithTransformation(
+            SimpleComputedField field,
+            ExecutableElement informativeMethod,
+            List<SimpleComputationProvider> providers,
+            Map<String, String> depsToFqcnMapping) {
+
+        Elements elements = processingEnv.getElementUtils();
+        Types types = processingEnv.getTypeUtils();
+
+        TypeMirror fieldType = informativeMethod.getReturnType();
+
+        // === STAGE 1: Resolve computedBy method ===
+
+        final String computedByMethodName = (field.computedByMethod() != null && !field.computedByMethod().isBlank())
+                ? field.computedByMethod()
+                : "to" + StringUtils.capitalize(field.dtoField());
+
+        List<SimpleComputationProvider> computedByProviders = providers;
+        if (field.computedByClass() != null) {
+            computedByProviders = List.of(new SimpleComputationProvider(field.computedByClass(), null));
+        }
+
+        ExecutableElement computedByMethod = null;
+        String computedByProviderClass = null;
+
+        for (SimpleComputationProvider provider : computedByProviders) {
+            TypeElement providerElement = elements.getTypeElement(provider.className());
+            if (providerElement == null) continue;
+
+            for (Element enclosed : providerElement.getEnclosedElements()) {
+                if (enclosed.getKind() != ElementKind.METHOD) continue;
+
+                ExecutableElement method = (ExecutableElement) enclosed;
+                if (!computedByMethodName.equals(method.getSimpleName().toString())) continue;
+
+                // Verify parameter count
+                List<? extends VariableElement> parameters = method.getParameters();
+                if (parameters.size() != field.dependencies().length) {
+                    throw new IllegalStateException(String.format("Method %s.%s has incompatible parameters count. Required: %s, Found: %s.",
+                            provider.className,
+                            computedByMethodName,
+                            field.dependencies().length,
+                            parameters.size())
+                    );
+                }
+
+                // Verify parameter types
+                for (int i = 0; i < parameters.size(); i++) {
+                    String methodParamFqcn = parameters.get(i).asType().toString();
+                    String dependencyFqcn = depsToFqcnMapping.get(field.dependencies()[i]);
+                    if (!methodParamFqcn.equals(dependencyFqcn)) {
+                        throw new IllegalStateException( String.format(
+                                "Method %s.%s has incompatible type on parameter[%d]. Required: %s, Found: %s.",
+                                provider.className,
+                                computedByMethodName,
+                                i,
+                                dependencyFqcn,
+                                methodParamFqcn)
+                        );
+                    }
+                }
+
+                // Found matching computedBy method
+                computedByMethod = method;
+                computedByProviderClass = provider.className();
+                break;
+            }
+
+            if (computedByMethod != null) break;
+        }
+
+        if (computedByMethod == null) {
+            throw new IllegalStateException( String.format("No matching resolution of computing method '%s' found for @Computed field '%s'.",
+                    computedByMethodName,
+                    informativeMethod.getSimpleName()
+            ));
+        }
+
+        // === STAGE 2: Resolve then method (if specified) ===
+
+        if (field.thenMethod() == null || field.thenMethod().isBlank()) {
+            // No transformation - validate computedBy return type matches field type
+            TypeMirror computedByReturnType = computedByMethod.getReturnType();
+            if (!types.isSameType(computedByReturnType, fieldType)) {
+                throw new IllegalStateException( String.format(
+                        "Method %s.%s has incompatible return type. Required: %s, Found: %s.",
+                        computedByProviderClass,
+                        computedByMethodName,
+                        fieldType.toString(),
+                        computedByReturnType.toString()
+                ));
+            }
+
+            // Valid without transformation
+            return new SimpleComputedField(field.dtoField,
+                    field.dependencies,
+                    field.reducerIndices,
+                    field.reducerNames,
+                    computedByProviderClass,
+                    computedByMethodName,
+                    null,
+                    null
+            );
+        }
+
+        // Then method is specified - must be explicit
+        final String thenMethodName = field.thenMethod();
+
+        List<SimpleComputationProvider> thenProviders = providers;
+        if (field.thenClass() != null) {
+            thenProviders = List.of(new SimpleComputationProvider(field.thenClass(), null));
+        } else {
+            thenProviders.addFirst(new SimpleComputationProvider(informativeMethod.getEnclosingElement().toString(), null));
+        }
+
+        ExecutableElement thenMethod = null;
+        String thenProviderClass = null;
+        TypeMirror computedByReturnType = computedByMethod.getReturnType();
+
+        for (SimpleComputationProvider provider : thenProviders) {
+            TypeElement providerElement = elements.getTypeElement(provider.className());
+            if (providerElement == null) continue;
+
+            for (Element enclosed : providerElement.getEnclosedElements()) {
+                if (enclosed.getKind() != ElementKind.METHOD) continue;
+
+                ExecutableElement method = (ExecutableElement) enclosed;
+                if (!thenMethodName.equals(method.getSimpleName().toString())) continue;
+
+                // === CRITICAL VALIDATIONS FOR TRANSFORMATION METHODS ===
+
+                // 1. Must be static (pure function)
+                if (!method.getModifiers().contains(Modifier.STATIC)) {
+                    throw new IllegalStateException( String.format(
+                            "Transformation method '%s.%s' must be static. " +
+                                    "Transformation functions must be pure (no state, no side effects). " +
+                                    "IoC-managed beans are not allowed for transformations.",
+                            provider.className(),
+                            thenMethodName
+                    ));
+                }
+
+                // 2. Must accept exactly one parameter
+                List<? extends VariableElement> parameters = method.getParameters();
+                if (parameters.size() != 1) {
+                    throw new IllegalStateException( String.format(
+                            "Transformation method '%s.%s' must accept exactly one parameter " +
+                                    "(the output of computedBy method). Found: %d parameters.",
+                            provider.className(),
+                            thenMethodName,
+                            parameters.size()
+                    ));
+                }
+
+                // 3. Parameter type must match computedBy return type
+                TypeMirror thenParameterType = parameters.getFirst().asType();
+                if (!types.isSameType(thenParameterType, computedByReturnType)) {
+                    throw new IllegalStateException( String.format(
+                            "Transformation method '%s.%s' parameter type incompatible. " +
+                                    "Expected: %s (output of computedBy), Found: %s.",
+                            provider.className(),
+                            thenMethodName,
+                            computedByReturnType.toString(),
+                            thenParameterType.toString()
+                    ));
+                }
+
+                // 4. Return type must match field type
+                TypeMirror thenReturnType = method.getReturnType();
+                if (!types.isSameType(thenReturnType, fieldType)) {
+                    throw new IllegalStateException( String.format(
+                            "Transformation method '%s.%s' return type incompatible. " +
+                                    "Expected: %s (field type), Found: %s.",
+                            provider.className(),
+                            thenMethodName,
+                            fieldType.toString(),
+                            thenReturnType.toString()
+                    ));
+                }
+
+                // All validations passed
+                thenMethod = method;
+                thenProviderClass = provider.className();
+                break;
+            }
+
+            if (thenMethod != null) break;
+        }
+
+        if (thenMethod == null) {
+            throw new IllegalStateException( String.format(
+                    "No matching transformation method '%s' found for @Computed field '%s'. " +
+                            "Transformation methods must be static and accept one parameter of type %s.",
+                    thenMethodName,
+                    informativeMethod.getSimpleName(),
+                    computedByReturnType.toString()
+            ));
+        }
+
+        // Both stages validated successfully
+        return new SimpleComputedField(field.dtoField,
+                field.dependencies,
+                field.reducerIndices,
+                field.reducerNames,
+                computedByProviderClass,
+                computedByMethodName,
+                thenProviderClass,
+                field.thenMethod
+        );
+    }
+
+    /**
      * Validates that a compute method exists for the given computed field in one of
-     * the
-     * configured computation provider classes.
+     * the configured computation provider classes.
      * <p>
      * Validation covers:
      * </p>
      * <ul>
-     * <li>Method name convention: {@code get} + capitalized DTO field name.</li>
+     * <li>Method name convention: {@code to} + capitalized DTO field name.</li>
      * <li>Exact return type matching the computed DTO field type.</li>
      * <li>Exact parameter count matching the number of declared dependencies.</li>
-     * <li>Exact parameter type matching the resolved dependency types in
-     * {@code depsToFqcnMapping}.</li>
+     * <li>Parameter type matching with autoboxing/unboxing and numeric promotions support.</li>
      * </ul>
+     * <p>
+     * The validation ensures that at runtime, Java's automatic type conversions
+     * (autoboxing, unboxing, and numeric promotions) will allow successful method invocation.
+     * </p>
      *
      * @param field             the computed field descriptor
      * @param informativeMethod the @Computed annotated method
@@ -461,17 +722,18 @@ public class ProjectionProcessor {
         Elements elements = processingEnv.getElementUtils();
         Types types = processingEnv.getTypeUtils();
 
-        final String methodName = (field.methodName != null && !field.methodName().isBlank()) ? field.methodName()
+        final String methodName = (field.computedByMethod != null && !field.computedByMethod().isBlank())
+                ? field.computedByMethod()
                 : "to" + StringUtils.capitalize(field.dtoField());
 
-        if (field.methodClass != null) {
-            computers = List.of(new SimpleComputationProvider(field.methodClass, null));
+        if (field.computedByClass != null) {
+            computers = List.of(new SimpleComputationProvider(field.computedByClass, null));
         }
 
         for (SimpleComputationProvider provider : computers) {
             TypeElement providerElement = elements.getTypeElement(provider.className());
             if (providerElement == null)
-                continue; // classe introuvable
+                continue; // class not found
 
             for (Element enclosed : providerElement.getEnclosedElements()) {
                 if (enclosed.getKind() != ElementKind.METHOD)
@@ -481,7 +743,7 @@ public class ProjectionProcessor {
                 if (!methodName.equals(method.getSimpleName().toString()))
                     continue;
 
-                // Vérifie le type de retour
+                // Verify return type
                 TypeMirror returnType = method.getReturnType();
                 if (!types.isSameType(returnType, fieldType)) {
                     return String.format("Method %s.%s has incompatible return type. Required: %s, Found: %s.",
@@ -491,7 +753,7 @@ public class ProjectionProcessor {
                             returnType.toString());
                 }
 
-                // vérifie le nombre d'arguments
+                // Verify parameter count
                 List<? extends VariableElement> parameters = method.getParameters();
                 if (parameters.size() != field.dependencies().length) {
                     return String.format("Method %s.%s has incompatible parameters count. Required: %s, Found: %s.",
@@ -501,22 +763,47 @@ public class ProjectionProcessor {
                             parameters.size());
                 }
 
-                // Vérifie le type d'arguments
+                // Verify parameter types WITH autoboxing/unboxing and numeric promotions support
+                boolean allParamsMatch = true;
+                String firstMismatch = null;
+
                 for (int i = 0; i < parameters.size(); i++) {
-                    String methodParamFqcn = parameters.get(i).asType().toString();
+                    TypeMirror methodParamType = parameters.get(i).asType();
                     String dependencyFqcn = depsToFqcnMapping.get(field.dependencies()[i]);
-                    if (!methodParamFqcn.equals(dependencyFqcn)) {
-                        return String.format(
+
+                    // Convert FQCN to TypeMirror for robust comparison
+                    TypeMirror dependencyType = AnnotationProcessorUtils.resolveTypeMirror(dependencyFqcn, elements, types);
+
+                    if (dependencyType == null) {
+                        allParamsMatch = false;
+                        firstMismatch = String.format(
+                                "Method %s.%s has incompatible type on parameter[%d]. Required: %s (type not resolvable), Found: %s.",
+                                provider.className,
+                                methodName,
+                                i,
+                                dependencyFqcn,
+                                methodParamType);
+                        break;
+                    }
+
+                    if (!AnnotationProcessorUtils.areTypesCompatible(dependencyType, methodParamType, types)) {
+                        allParamsMatch = false;
+                        firstMismatch = String.format(
                                 "Method %s.%s has incompatible type on parameter[%d]. Required: %s, Found: %s.",
                                 provider.className,
                                 methodName,
                                 i,
                                 dependencyFqcn,
-                                methodParamFqcn);
+                                methodParamType);
+                        break;
                     }
                 }
 
-                return null;
+                if (!allParamsMatch) {
+                    return firstMismatch;
+                }
+
+                return null; // ✅ Valid method found
             }
         }
 
@@ -900,7 +1187,7 @@ public class ProjectionProcessor {
         if (!metadata.computedFields().isEmpty()) {
             sb.append("\n");
             for (int i = 0; i < metadata.computedFields().size(); i++) {
-                sb.append(formatComputedField(metadata.computedFields().get(i)));
+                sb.append(formatComputedField(metadata.computedFields().get(i), dtoType));
                 sb.append(i < metadata.computedFields().size() - 1 ? ",\n" : "\n");
             }
             sb.append("                ");
@@ -946,7 +1233,7 @@ public class ProjectionProcessor {
      * @param f the computed field descriptor
      * @return a Java expression string constructing a {@code ComputedField}
      */
-    private String formatComputedField(SimpleComputedField f) {
+    private String formatComputedField(SimpleComputedField f, String dtoFqcn) {
         String deps = Arrays.stream(f.dependencies())
                 .map(d -> "\"" + d + "\"")
                 .collect(Collectors.joining(", "));
@@ -961,24 +1248,31 @@ public class ProjectionProcessor {
                     f.reducerIndices()[i], f.reducerNames()[i]));
         }
 
-        if (f.methodClass() == null && f.methodName() == null) {
-            return String.format(
-                    "                    new ComputedField(\"%s\", new String[]{%s}, new ComputedField.ReducerMapping[]{%s})",
-                    f.dtoField(),
-                    deps,
-                    reducerMappings);
-        }
+        String computeRef = String.format("new ComputedField.MethodReference(%s.class,\"%s\")",
+                f.computedByClass() == null ? dtoFqcn : f.computedByClass,
+                f.computedByMethod() == null ? "to" + StringUtils.capitalize(f.dtoField) : f.computedByMethod()
+        );
 
-        String classArg = f.methodClass() != null ? f.methodClass() + ".class" : "null";
-        String methodArg = f.methodName() != null && !f.methodName().isBlank() ? "\"" + f.methodName() + "\"" : "null";
+        String thenRef = f.thenMethod() != null ? String.format("new ComputedField.MethodReference(%s.class,\"%s\")",
+                f.thenClass() == null ? dtoFqcn : f.thenClass,
+                f.thenMethod()) : null;
 
-        return String.format(
-                "                    new ComputedField(\"%s\", new String[]{%s}, new ComputedField.ReducerMapping[]{%s}, %s, %s)",
+
+        return String.format("""
+                                            new ComputedField(
+                                                "%s",
+                                                new String[]{%s},
+                                                new ComputedField.ReducerMapping[]{%s},
+                                                %s,
+                                                %s
+                                            )
+                        """,
                 f.dtoField(),
                 deps,
                 reducerMappings,
-                classArg,
-                methodArg);
+                computeRef,
+                thenRef
+        );
     }
 
     /**
@@ -1051,19 +1345,27 @@ public class ProjectionProcessor {
     }
 
     /**
-     * Lightweight value object describing a computed field view on annotation
-     * processor.
+     * Lightweight value object describing a computed field view on annotation processor.
      *
-     * @param dtoField       the DTO field name
-     * @param dependencies   the dependency paths
-     * @param reducerIndices the indices of dependencies that have reducers
-     * @param reducerNames   the reducer names corresponding to each index
-     * @param methodClass    the method class, if specified
-     * @param methodName     the method name, if specified
+     * @param dtoField            the DTO field name
+     * @param dependencies        the dependency paths
+     * @param reducerIndices      the indices of dependencies that have reducers
+     * @param reducerNames        the reducer names corresponding to each index
+     * @param computedByClass     the computedBy method class, if specified
+     * @param computedByMethod    the computedBy method name, if specified
+     * @param thenClass           the then method class, if specified (NOUVEAU)
+     * @param thenMethod          the then method name, if specified (NOUVEAU)
      */
-    record SimpleComputedField(String dtoField, String[] dependencies, int[] reducerIndices, String[] reducerNames,
-            String methodClass, String methodName) {
-    }
+    record SimpleComputedField(
+            String dtoField,
+            String[] dependencies,
+            int[] reducerIndices,
+            String[] reducerNames,
+            String computedByClass,
+            String computedByMethod,
+            String thenClass,
+            String thenMethod
+    ) { }
 
     /**
      * Aggregated projection metadata used internally by the processor before being

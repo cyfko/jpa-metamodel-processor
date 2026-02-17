@@ -6,8 +6,12 @@ import io.github.cyfko.jpametamodel.api.CollectionType;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.PrimitiveType;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
 import javax.lang.model.util.SimpleAnnotationValueVisitor14;
+import javax.lang.model.util.Types;
 import java.util.*;
 import java.util.function.Consumer;
 
@@ -605,5 +609,151 @@ public class AnnotationProcessorUtils {
         }
 
         return Optional.empty();
+    }
+
+    /**
+     * Resolves a fully qualified class name to a {@link TypeMirror}, including primitive types.
+     *
+     * @param fqcn the fully qualified class name (e.g., "int", "java.lang.Integer")
+     * @param elements the {@link Elements} utility from the processing environment
+     * @param types the {@link Types} utility from the processing environment
+     * @return the corresponding {@link TypeMirror}, or {@code null} if not resolvable
+     */
+    public static TypeMirror resolveTypeMirror(String fqcn, Elements elements, Types types) {
+        // Attempt 1: primitive type
+        TypeMirror primitive = getPrimitiveType(fqcn, types);
+        if (primitive != null) {
+            return primitive;
+        }
+
+        // Attempt 2: class/interface
+        TypeElement typeElement = elements.getTypeElement(fqcn);
+        return typeElement != null ? typeElement.asType() : null;
+    }
+
+    /**
+     * Checks if a source type (argType) is compatible with a target type (paramType).
+     * <p>
+     * Handles:
+     * <ul>
+     * <li>Direct assignability (including inheritance and interfaces)</li>
+     * <li>Autoboxing/unboxing (e.g., {@code Integer} ↔ {@code int})</li>
+     * <li>Numeric promotions according to JLS §5.1.2</li>
+     * </ul>
+     * </p>
+     * <p>
+     * This ensures that Java's automatic type conversions at runtime via
+     * {@link java.lang.reflect.Method#invoke(Object, Object...)} will succeed.
+     * </p>
+     *
+     * @param argType the type of the provided argument (source)
+     * @param paramType the type of the expected parameter (target)
+     * @param types the {@link Types} utility from the processing environment
+     * @return {@code true} if argType can be assigned to paramType with automatic conversions
+     */
+    public static boolean areTypesCompatible(TypeMirror argType, TypeMirror paramType, Types types) {
+        // 1. Direct assignability (includes inheritance and interfaces)
+        if (types.isAssignable(argType, paramType)) {
+            return true;
+        }
+
+        // 2. Autoboxing: argType=Integer, paramType=int
+        if (paramType.getKind().isPrimitive()) {
+            try {
+                TypeMirror unboxed = types.unboxedType(argType);
+                if (types.isSameType(unboxed, paramType)) {
+                    return true; // Integer → int
+                }
+                // Promotion after unboxing: Integer → int → long
+                if (canPromote(unboxed, paramType)) {
+                    return true;
+                }
+            } catch (IllegalArgumentException e) {
+                // argType is not a wrapper, continue
+            }
+        }
+
+        // 3. Unboxing: argType=int, paramType=Integer
+        if (argType.getKind().isPrimitive()) {
+            try {
+                TypeMirror boxed = types.boxedClass((PrimitiveType) argType).asType();
+                if (types.isAssignable(boxed, paramType)) {
+                    return true; // int → Integer → Number
+                }
+            } catch (IllegalArgumentException e) {
+                // Not a valid primitive (shouldn't happen)
+            }
+        }
+
+        // 4. Direct numeric promotion: argType=int, paramType=long
+        if (argType.getKind().isPrimitive() && paramType.getKind().isPrimitive()) {
+            return canPromote(argType, paramType);
+        }
+
+        return false;
+    }
+
+    /**
+     * Checks if a numeric source type can be promoted to a target type.
+     * <p>
+     * Follows JLS §5.1.2 promotion rules:
+     * <ul>
+     * <li>{@code byte} → {@code short} → {@code int} → {@code long} → {@code float} → {@code double}</li>
+     * <li>{@code char} → {@code int} → {@code long} → {@code float} → {@code double}</li>
+     * </ul>
+     * </p>
+     *
+     * @param source the source type (must be primitive)
+     * @param target the target type (must be primitive)
+     * @return {@code true} if the promotion is valid according to JLS
+     */
+    public static boolean canPromote(TypeMirror source, TypeMirror target) {
+        TypeKind sourceKind = source.getKind();
+        TypeKind targetKind = target.getKind();
+
+        // No promotion needed
+        if (sourceKind == targetKind) {
+            return true;
+        }
+
+        // Promotion chain according to JLS
+        return switch (sourceKind) {
+            case BYTE -> targetKind == TypeKind.SHORT || targetKind == TypeKind.INT
+                    || targetKind == TypeKind.LONG || targetKind == TypeKind.FLOAT
+                    || targetKind == TypeKind.DOUBLE;
+
+            case SHORT, CHAR -> targetKind == TypeKind.INT || targetKind == TypeKind.LONG
+                    || targetKind == TypeKind.FLOAT || targetKind == TypeKind.DOUBLE;
+
+            case INT -> targetKind == TypeKind.LONG || targetKind == TypeKind.FLOAT
+                    || targetKind == TypeKind.DOUBLE;
+
+            case LONG -> targetKind == TypeKind.FLOAT || targetKind == TypeKind.DOUBLE;
+
+            case FLOAT -> targetKind == TypeKind.DOUBLE;
+
+            default -> false;
+        };
+    }
+
+    /**
+     * Resolves a primitive type name to its corresponding {@link TypeMirror}.
+     *
+     * @param typeName the name of the primitive type (e.g., "int", "boolean")
+     * @param types the {@link Types} utility from the processing environment
+     * @return the corresponding {@link TypeMirror}, or {@code null} if not a primitive
+     */
+    public static TypeMirror getPrimitiveType(String typeName, Types types) {
+        return switch (typeName) {
+            case "int"     -> types.getPrimitiveType(TypeKind.INT);
+            case "long"    -> types.getPrimitiveType(TypeKind.LONG);
+            case "short"   -> types.getPrimitiveType(TypeKind.SHORT);
+            case "byte"    -> types.getPrimitiveType(TypeKind.BYTE);
+            case "char"    -> types.getPrimitiveType(TypeKind.CHAR);
+            case "float"   -> types.getPrimitiveType(TypeKind.FLOAT);
+            case "double"  -> types.getPrimitiveType(TypeKind.DOUBLE);
+            case "boolean" -> types.getPrimitiveType(TypeKind.BOOLEAN);
+            default        -> null;
+        };
     }
 }

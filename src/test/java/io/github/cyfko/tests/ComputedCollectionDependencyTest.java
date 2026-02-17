@@ -475,7 +475,7 @@ class ComputedCollectionDependencyTest {
                 .compile(user, order, orderItem, department, company, computer, dto);
 
         assertThat(compilation).failed();
-        assertThat(compilation).hadErrorContaining("No matching provider found for @Computed method 'getOrderCount'");
+        assertThat(compilation).hadErrorContaining("No matching resolution of computing method 'toOrderCount' found for @Computed field 'getOrderCount'");
     }
 
     // ==================== Test 8: Invalid Collection Path Fails

@@ -215,7 +215,7 @@ class ComputedCollectionErrorMessageTest {
         assertThat(compilation).failed();
         // Error should indicate no matching method and show expected signature with
         // collection type
-        assertThat(compilation).hadErrorContaining("No matching provider found for @Computed method 'getOrderCount'");
+        assertThat(compilation).hadErrorContaining("No matching resolution of computing method 'toOrderCount' found for @Computed field 'getOrderCount'");
         assertThat(compilation).hadErrorContaining("Source: io.github.cyfko.example.UserDTO");
         assertThat(compilation).hadErrorContaining("Providers: io.github.cyfko.example.UserComputations");
         assertThat(compilation).hadErrorContaining("Expected computing method: public java.lang.Integer toOrderCount(java.util.List<io.github.cyfko.example.Order> orders);");

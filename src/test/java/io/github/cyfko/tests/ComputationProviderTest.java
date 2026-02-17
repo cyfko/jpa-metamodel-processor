@@ -128,7 +128,7 @@ class ComputationProviderTest {
                 .compile(entity, computer, dto);
 
         assertThat(compilation).failed();
-        assertThat(compilation).hadErrorContaining("No matching provider found for @Computed method 'getFullName'");
+        assertThat(compilation).hadErrorContaining("No matching resolution of computing method 'toFullName' found for @Computed field 'getFullName'");
     }
 
     @Test
@@ -153,7 +153,7 @@ class ComputationProviderTest {
                 .compile(entity, dto);
 
         assertThat(compilation).failed();
-        assertThat(compilation).hadErrorContaining("No matching provider found for @Computed method 'getFullName'");
+        assertThat(compilation).hadErrorContaining("No matching resolution of computing method 'toFullName' found for @Computed field 'getFullName'");
     }
 
     // ==================== Test Category 2: Wrong Method Name ====================
@@ -196,7 +196,7 @@ class ComputationProviderTest {
                 .compile(entity, computer, dto);
 
         assertThat(compilation).failed();
-        assertThat(compilation).hadErrorContaining("No matching provider found for @Computed method 'getFullName'");
+        assertThat(compilation).hadErrorContaining("No matching resolution of computing method 'toFullName' found for @Computed field 'getFullName'");
     }
 
     @Test
@@ -237,11 +237,10 @@ class ComputationProviderTest {
                 .compile(entity, computer, dto);
 
         assertThat(compilation).failed();
-        assertThat(compilation).hadErrorContaining("No matching provider found for @Computed method 'getFullName'");
+        assertThat(compilation).hadErrorContaining("No matching resolution of computing method 'toFullName' found for @Computed field 'getFullName'");
     }
 
-    // ==================== Test Category 3: Return Type Mismatch
-    // ====================
+    // ==================== Test Category 3: Return Type Mismatch ====================
 
     @Test
     void testReturnTypeMismatch() {
@@ -327,8 +326,7 @@ class ComputationProviderTest {
                 .hadErrorContaining("has incompatible return type. Required: java.lang.Integer, Found: int");
     }
 
-    // ==================== Test Category 4: Parameter Count Mismatch
-    // ====================
+    // ==================== Test Category 4: Parameter Count Mismatch ====================
 
     @Test
     void testParameterCountTooFew() {
@@ -455,8 +453,7 @@ class ComputationProviderTest {
         assertThat(compilation).hadErrorContaining("has incompatible parameters count. Required: 1, Found: 0");
     }
 
-    // ==================== Test Category 5: Parameter Type Mismatch
-    // ====================
+    // ==================== Test Category 5: Parameter Type Mismatch ====================
 
     @Test
     void testParameterTypeMismatch() {
@@ -584,8 +581,7 @@ class ComputationProviderTest {
                 "has incompatible type on parameter[0]. Required: java.lang.Integer, Found: int");
     }
 
-    // ==================== Test Category 6: Multiple Computers Resolution
-    // ====================
+    // ==================== Test Category 6: Multiple Computers Resolution ====================
 
     @Test
     void testMultipleComputersFirstMatchWins() {
@@ -1152,8 +1148,7 @@ class ComputationProviderTest {
         // Should fail because computer class doesn't exist
     }
 
-    // ==================== Test Category 12: Generated Code Verification
-    // ====================
+    // ==================== Test Category 12: Generated Code Verification ====================
 
     @Test
     void testGeneratedCodeContainsComputationProviders() throws IOException {
@@ -1256,8 +1251,222 @@ class ComputationProviderTest {
         // Verify bean name is included
         assert generatedCode.contains("userComputationsBean");
         assert generatedCode.contains("UserComputations.class");
-        assert generatedCode
-                .contains(
-                        "new ComputedField(\"fullName\", new String[]{\"firstName\", \"lastName\"}, new ComputedField.ReducerMapping[]{}");
+        assert generatedCode.contains("""
+                                            new ComputedField(
+                                                "fullName",
+                                                new String[]{"firstName", "lastName"},
+                                                new ComputedField.ReducerMapping[]{},
+                                                new ComputedField.MethodReference(io.github.cyfko.example.UserComputations.class,"toFullName"),
+                                                null
+                                            )
+                        """);
     }
+
+    // ==================== Test Category 13: Return Type Mismatch with transformation ====================
+
+    @Test
+    void testGeneratedCodeHandlesTransformationDetails() throws IOException {
+        JavaFileObject entity = createUserEntity();
+
+        JavaFileObject computer = JavaFileObjects.forSourceString(
+                "io.github.cyfko.example.UserComputations",
+                """
+                        package io.github.cyfko.example;
+
+                        public class UserComputations {
+                            public Object toFullName(String firstName, String lastName) {
+                                return firstName + " " + lastName;
+                            }
+                        
+                            public static String stringify(Object o){
+                                return o.toString();
+                            }
+                        }
+                        """);
+
+        JavaFileObject dto = JavaFileObjects.forSourceString(
+                "io.github.cyfko.example.UserDTO",
+                """
+                        package io.github.cyfko.example;
+                        import io.github.cyfko.projection.*;
+
+                        @Projection(
+                            from = User.class,
+                            providers = {@Provider(value = UserComputations.class, bean = "userComputationsBean")}
+                        )
+                        public interface UserDTO {
+                            @Computed(dependsOn = {"firstName", "lastName"}, then = @Method("stringify"))
+                            String getFullName();
+                        }
+                        """);
+
+        Compilation compilation = Compiler.javac()
+                .withProcessors(new MetamodelProcessor())
+                .compile(entity, computer, dto);
+
+        assertThat(compilation).succeeded();
+
+        String generatedCode = compilation
+                .generatedSourceFile(
+                        "io.github.cyfko.jpametamodel.providers.impl.ProjectionRegistryProviderImpl")
+                .orElseThrow(() -> new AssertionError("Generated projection provider not found"))
+                .getCharContent(true)
+                .toString();
+
+        // Verify bean name is included
+        assert generatedCode.contains("userComputationsBean");
+        assert generatedCode.contains("UserComputations.class");
+        assert generatedCode.contains("""
+                                                           new ComputedField(
+                                                               "fullName",
+                                                               new String[]{"firstName", "lastName"},
+                                                               new ComputedField.ReducerMapping[]{},
+                                                               new ComputedField.MethodReference(io.github.cyfko.example.UserComputations.class,"toFullName"),
+                                                               new ComputedField.MethodReference(io.github.cyfko.example.UserComputations.class,"stringify")
+                                                           )
+                                       """);
+    }
+
+    @Test
+    void testGeneratedCodeHandlesTransformationDetailsWithFirstMatch() throws IOException {
+        JavaFileObject entity = createUserEntity();
+
+        JavaFileObject computer = JavaFileObjects.forSourceString(
+                "io.github.cyfko.example.UserComputations",
+                """
+                        package io.github.cyfko.example;
+
+                        public class UserComputations {
+                            public Object toFullName(String firstName, String lastName) {
+                                return firstName + " " + lastName;
+                            }
+                        
+                            public static String toUppercaseString(Object o){
+                                return o.toString();
+                            }
+                        }
+                        """);
+
+        JavaFileObject dto = JavaFileObjects.forSourceString(
+                "io.github.cyfko.example.UserDTO",
+                """
+                        package io.github.cyfko.example;
+                        import io.github.cyfko.projection.*;
+
+                        @Projection(
+                            from = User.class,
+                            providers = {@Provider(value = UserComputations.class, bean = "userComputationsBean")}
+                        )
+                        public interface UserDTO {
+                            @Computed(dependsOn = {"firstName", "lastName"}, then = @Method("toUppercaseString"))
+                            String getFullName();
+                        
+                            public static String toUppercaseString(Object o){
+                                return o.toString();
+                            }
+                        }
+                        """);
+
+        Compilation compilation = Compiler.javac()
+                .withProcessors(new MetamodelProcessor())
+                .compile(entity, computer, dto);
+
+        assertThat(compilation).succeeded();
+
+        String generatedCode = compilation
+                .generatedSourceFile(
+                        "io.github.cyfko.jpametamodel.providers.impl.ProjectionRegistryProviderImpl")
+                .orElseThrow(() -> new AssertionError("Generated projection provider not found"))
+                .getCharContent(true)
+                .toString();
+
+        // Verify bean name is included
+        assert generatedCode.contains("userComputationsBean");
+        assert generatedCode.contains("UserComputations.class");
+        assert generatedCode.contains("""
+                                                           new ComputedField(
+                                                               "fullName",
+                                                               new String[]{"firstName", "lastName"},
+                                                               new ComputedField.ReducerMapping[]{},
+                                                               new ComputedField.MethodReference(io.github.cyfko.example.UserComputations.class,"toFullName"),
+                                                               new ComputedField.MethodReference(io.github.cyfko.example.UserDTO.class,"toUppercaseString")
+                                                           )
+                                       """);
+    }
+
+    @Test
+    void testGeneratedCodeHandlesTransformationDetailsWithFirstMatchDeep() throws IOException {
+        JavaFileObject entity = createUserEntity();
+
+        JavaFileObject computer = JavaFileObjects.forSourceString(
+                "io.github.cyfko.example.UserComputations",
+                """
+                        package io.github.cyfko.example;
+
+                        public class UserComputations {
+                            public Object toFullName(String firstName, String lastName) {
+                                return firstName + " " + lastName;
+                            }
+                        }
+                        """);
+
+        JavaFileObject utils = JavaFileObjects.forSourceString(
+                "io.github.cyfko.example.StringUtils",
+                """
+                        package io.github.cyfko.example;
+
+                        public class StringUtils {
+                            public Object toFullName(String firstName, String lastName) {
+                                return firstName + " " + lastName;
+                            }
+                        
+                            public static String uppercaseString(Object o){
+                                return o.toString();
+                            }
+                        }
+                        """);
+
+        JavaFileObject dto = JavaFileObjects.forSourceString(
+                "io.github.cyfko.example.UserDTO",
+                """
+                        package io.github.cyfko.example;
+                        import io.github.cyfko.projection.*;
+
+                        @Projection(
+                            from = User.class,
+                            providers = {@Provider(value = UserComputations.class, bean = "userComputationsBean"), @Provider(StringUtils.class)}
+                        )
+                        public interface UserDTO {
+                            @Computed(dependsOn = {"firstName", "lastName"}, then = @Method("uppercaseString"))
+                            String getFullName();
+                        }
+                        """);
+
+        Compilation compilation = Compiler.javac()
+                .withProcessors(new MetamodelProcessor())
+                .compile(entity, computer, dto, utils);
+
+        assertThat(compilation).succeeded();
+
+        String generatedCode = compilation
+                .generatedSourceFile(
+                        "io.github.cyfko.jpametamodel.providers.impl.ProjectionRegistryProviderImpl")
+                .orElseThrow(() -> new AssertionError("Generated projection provider not found"))
+                .getCharContent(true)
+                .toString();
+
+        // Verify bean name is included
+        assert generatedCode.contains("userComputationsBean");
+        assert generatedCode.contains("UserComputations.class");
+        assert generatedCode.contains("""
+                                                           new ComputedField(
+                                                               "fullName",
+                                                               new String[]{"firstName", "lastName"},
+                                                               new ComputedField.ReducerMapping[]{},
+                                                               new ComputedField.MethodReference(io.github.cyfko.example.UserComputations.class,"toFullName"),
+                                                               new ComputedField.MethodReference(io.github.cyfko.example.StringUtils.class,"uppercaseString")
+                                                           )
+                                       """);
+    }
+
 }
