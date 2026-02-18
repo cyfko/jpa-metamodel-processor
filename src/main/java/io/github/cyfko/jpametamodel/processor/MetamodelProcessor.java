@@ -7,8 +7,8 @@ import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
-import javax.tools.Diagnostic;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -36,6 +36,9 @@ import java.util.Set;
 @SupportedSourceVersion(SourceVersion.RELEASE_21)
 public class MetamodelProcessor extends AbstractProcessor {
 
+    private Types typeUtils;
+    private Elements elementUtils;
+
     private EntityProcessor entityProcessor;
     private ProjectionProcessor projectionProcessor;
     private boolean entitiesProcessed = false;
@@ -43,6 +46,8 @@ public class MetamodelProcessor extends AbstractProcessor {
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
+        this.elementUtils = processingEnv.getElementUtils();
+        this.typeUtils = processingEnv.getTypeUtils();
 
         // Initialize delegate processors
         this.entityProcessor = new EntityProcessor(processingEnv);
@@ -179,21 +184,18 @@ public class MetamodelProcessor extends AbstractProcessor {
             projectionProcessor.validateEntityFieldPath(entityClassName, mapping.entityField(), entityFieldType -> {
 
                 // Vérification récursive si le champ projeté est lui-même une projection
-                TypeElement dtoFieldTypeElement = processingEnv.getElementUtils().getTypeElement(dtoFieldType);
+                TypeElement dtoFieldTypeElement = elementUtils.getTypeElement(dtoFieldType);
                 if (dtoFieldTypeElement != null && projectionProcessor.getRegistry()
                         .containsKey(dtoFieldTypeElement.getQualifiedName().toString())) {
                     // Champ DTO = projection imbriquée, vérifier récursivement
                     verifyProjectionTypeCompatibility(dtoFieldTypeElement, messager, visited);
                 } else {
                     // Champ simple : vérifier assignabilité stricte
-                    Types types = processingEnv.getTypeUtils();
                     TypeMirror dtoType = dtoFieldTypeElement != null ? dtoFieldTypeElement.asType() : null;
-                    TypeElement entityFieldTypeElement = processingEnv.getElementUtils()
-                            .getTypeElement(entityFieldType);
+                    TypeElement entityFieldTypeElement = (TypeElement) typeUtils.asElement(entityFieldType);
                     TypeMirror entityType = entityFieldTypeElement != null ? entityFieldTypeElement.asType() : null;
-                    if (dtoType != null && entityType != null && !types.isSameType(dtoType, entityType)) {
-                        messager.printMessage(Diagnostic.Kind.ERROR,
-                                "Projected field has a type mismatch '" + dtoField + "' : DTO=" + dtoFieldType
+                    if (dtoType != null && entityType != null && !typeUtils.isSameType(dtoType, entityType)) {
+                        messager.printError("Projected field has a type mismatch '" + dtoField + "' : DTO=" + dtoFieldType
                                         + ", Entity=" + entityFieldType,
                                 dtoClass);
                     }
@@ -208,8 +210,6 @@ public class MetamodelProcessor extends AbstractProcessor {
      * @param message the message to log
      */
     private void log(String message) {
-        processingEnv.getMessager().printMessage(
-                Diagnostic.Kind.NOTE,
-                "[ProjectionProcessor] " + message);
+        processingEnv.getMessager().printNote("[ProjectionProcessor] " + message);
     }
 }

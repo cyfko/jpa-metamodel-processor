@@ -75,7 +75,7 @@ class ProjectionIntegrationTest {
                 assertTrue(generatedCode.contains("departmentName"));
                 assertTrue(generatedCode.contains("\"department.name\""));
                 assertTrue(generatedCode.contains(
-                                "new DirectMapping.CollectionMetadata(CollectionKind.UNKNOWN, CollectionType.LIST"));
+                                "new DirectMapping.CollectionMetadata(CollectionKind.SCALAR, CollectionType.LIST"));
         }
 
         @Test
