@@ -82,45 +82,31 @@ public class AnnotationProcessorUtils {
      * <p>
      * Returns:
      * <ul>
-     * <li>{@link CollectionKind#SCALAR} if the element type is a basic JPA type or
-     * an enum.</li>
-     * <li>{@link CollectionKind#ENTITY} if the element type is annotated
-     * with @Entity.</li>
-     * <li>{@link CollectionKind#EMBEDDABLE} if the element type is annotated
-     * with @Embeddable.</li>
+     * <li>{@link CollectionKind#SCALAR} if the element type is not {@code null} and is neither an instance of
+     * {@code jakarta.persistence.Entity} nor an instance of {@code jakarta.persistence.Embeddable}.</li>
+     * <li>{@link CollectionKind#ENTITY} if the element type is an instance of {@code jakarta.persistence.Entity}.</li>
+     * <li>{@link CollectionKind#EMBEDDABLE} if the element type is an instance of {@code jakarta.persistence.Embeddable}.</li>
      * <li>{@link CollectionKind#UNKNOWN} otherwise.</li>
      * </ul>
      * </p>
      *
-     * @param elementType the fully qualified name of the element type * @param
-     *                    processingEnv the processing environment
+     * @param typeElement the element type
      * @return the collection kind
      */
-    public static CollectionKind determineCollectionKind(String elementType, ProcessingEnvironment processingEnv) {
-        if (elementType == null) {
+    public static CollectionKind determineCollectionKind(TypeElement typeElement) {
+        if (typeElement == null) {
             return CollectionKind.UNKNOWN;
         }
 
-        if (BASIC_JPA_TYPES.contains(elementType)) {
-            return CollectionKind.SCALAR;
+        if (hasAnnotation(typeElement, "jakarta.persistence.Entity")) {
+            return CollectionKind.ENTITY;
         }
 
-        TypeElement typeElement = processingEnv.getElementUtils().getTypeElement(elementType);
-        if (typeElement != null) {
-            if (typeElement.getKind() == ElementKind.ENUM) {
-                return CollectionKind.SCALAR;
-            }
-
-            if (hasAnnotation(typeElement, "jakarta.persistence.Entity")) {
-                return CollectionKind.ENTITY;
-            }
-
-            if (hasAnnotation(typeElement, "jakarta.persistence.Embeddable")) {
-                return CollectionKind.EMBEDDABLE;
-            }
+        if (hasAnnotation(typeElement, "jakarta.persistence.Embeddable")) {
+            return CollectionKind.EMBEDDABLE;
         }
 
-        return CollectionKind.UNKNOWN;
+        return CollectionKind.SCALAR;
     }
 
     /**

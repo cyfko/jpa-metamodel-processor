@@ -547,9 +547,9 @@ class ComputationProviderTest {
                         package io.github.cyfko.example;
 
                         public class UserComputations {
-                            // Wrong: expects Integer (boxed) but entity has int (primitive)
+                            // PASS: expects Integer (boxed) but entity has int (primitive)
                             public static String toAgeString(int age) {
-                                return age.toString();
+                                return ""+age;
                             }
                         }
                         """);
@@ -574,11 +574,8 @@ class ComputationProviderTest {
                 .withProcessors(new MetamodelProcessor())
                 .compile(entity, computer, dto);
 
-        // This should not succeed even if Integer and int are compatible in JPA context
-        // But let's verify the actual behavior
-        assertThat(compilation).failed();
-        assertThat(compilation).hadErrorContaining(
-                "has incompatible type on parameter[0]. Required: java.lang.Integer, Found: int");
+        // This should succeed because of Jav autoboxing/unboxing support
+        assertThat(compilation).succeeded();
     }
 
     // ==================== Test Category 6: Multiple Computers Resolution ====================

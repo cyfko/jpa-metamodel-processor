@@ -28,12 +28,23 @@ This processor provides:
 Add the following dependency to your `pom.xml`:
 
 ```xml
-<dependency>
-    <groupId>io.github.cyfko</groupId>
-    <artifactId>jpa-metamodel-processor</artifactId>
-    <version>1.0.3</version>
-    <scope>provided</scope>
-</dependency>
+<build>
+    <plugins>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+                <annotationProcessorPaths>
+                    <path>
+                        <groupId>io.github.cyfko</groupId>
+                        <artifactId>jpa-metamodel-processor</artifactId>
+                        <version>1.0.4</version>
+                    </path>
+                </annotationProcessorPaths>
+            </configuration>
+        </plugin>
+    </plugins>
+</build>
 ```
 
 The annotation processor will be automatically detected and executed during compilation thanks to `auto-service`.

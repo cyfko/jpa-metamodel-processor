@@ -9,6 +9,7 @@ import io.github.cyfko.jpametamodel.providers.PersistenceRegistryProvider;
 import javax.annotation.processing.*;
 import javax.lang.model.element.*;
 import javax.lang.model.type.*;
+import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
@@ -38,6 +39,10 @@ import static io.github.cyfko.jpametamodel.processor.AnnotationProcessorUtils.BA
 public class EntityProcessor {
 
     private final ProcessingEnvironment processingEnv;
+    private final Types typeUtils;
+    private final Elements elementUtils;
+    private final Messager messager;
+
     private final Map<String, Map<String, SimplePersistenceMetadata>> collectedRegistry = new LinkedHashMap<>();
     private final Map<String, Map<String, SimplePersistenceMetadata>> collectedEmbeddable = new LinkedHashMap<>();
 
@@ -51,6 +56,9 @@ public class EntityProcessor {
      */
     public EntityProcessor(ProcessingEnvironment processingEnv) {
         this.processingEnv = processingEnv;
+        this.typeUtils = processingEnv.getTypeUtils();
+        this.elementUtils = processingEnv.getElementUtils();
+        this.messager = processingEnv.getMessager();
     }
 
     /**
@@ -130,7 +138,6 @@ public class EntityProcessor {
      *
      */
     public void processEntities() {
-        Messager messager = processingEnv.getMessager();
 
         // Process @Entity classes
         for (var i = 0; i < referencedEntities.size(); i++) {
@@ -141,19 +148,19 @@ public class EntityProcessor {
                 continue;
             if (collectedRegistry.containsKey(fqcnEntity))
                 continue;
-            if (shouldSkipEntity(entityType, messager))
+            if (shouldSkipEntity(entityType))
                 continue;
 
             messager.printMessage(Diagnostic.Kind.NOTE, "🔍 Analysing entity: " + entityType.getQualifiedName());
 
-            Map<String, SimplePersistenceMetadata> fields = extractFields(entityType, entityType, messager);
+            Map<String, SimplePersistenceMetadata> fields = extractFields(entityType, entityType);
             collectedRegistry.put(fqcnEntity, fields);
 
             messager.printMessage(Diagnostic.Kind.NOTE,
                     "✅ Extracted " + fields.size() + " fields from " + entityType.getSimpleName());
 
             // Process referenced embeddables
-            processReferencedEmbeddables(fields, messager);
+            processReferencedEmbeddables(fields);
         }
     }
 
@@ -176,12 +183,10 @@ public class EntityProcessor {
      *                   hierarchy)
      * @param rootEntity the root entity type used for {@code @Id} consistency
      *                   checks
-     * @param messager   the messager used for warnings and errors
      * @return an ordered mapping from field name to
      *         {@link SimplePersistenceMetadata}
      */
-    private Map<String, SimplePersistenceMetadata> extractFields(TypeElement type, TypeElement rootEntity,
-            Messager messager) {
+    private Map<String, SimplePersistenceMetadata> extractFields(TypeElement type, TypeElement rootEntity) {
         Map<String, SimplePersistenceMetadata> result = new LinkedHashMap<>();
         Types types = processingEnv.getTypeUtils();
 
@@ -200,15 +205,12 @@ public class EntityProcessor {
                 if (AnnotationProcessorUtils.hasAnnotation(field, "jakarta.persistence.Transient"))
                     continue;
 
-                SimplePersistenceMetadata metadata = analyzeField(field, messager);
+                SimplePersistenceMetadata metadata = analyzeField(field);
                 result.put(name, metadata);
 
-                TypeElement relatedType = processingEnv.getElementUtils().getTypeElement(metadata.relatedType);
-                if (relatedType != null
-                        && AnnotationProcessorUtils.hasAnnotation(relatedType, "jakarta.persistence.Entity")) {
-                    referencedEntities.add(relatedType.toString());
+                if (metadata.relatedType != null && AnnotationProcessorUtils.hasAnnotation(metadata.relatedType, "jakarta.persistence.Entity")) {
+                    referencedEntities.add(metadata.relatedType.toString());
                 }
-                ;
             }
 
             TypeMirror superType = type.getSuperclass();
@@ -249,40 +251,32 @@ public class EntityProcessor {
      * </ul>
      *
      * @param fields   the already extracted fields for an entity or embeddable
-     * @param messager the messager used for diagnostic output
      */
-    private void processReferencedEmbeddables(Map<String, SimplePersistenceMetadata> fields, Messager messager) {
+    private void processReferencedEmbeddables(Map<String, SimplePersistenceMetadata> fields) {
         for (Map.Entry<String, SimplePersistenceMetadata> entry : fields.entrySet()) {
             SimplePersistenceMetadata metadata = entry.getValue();
 
             // Check if field has a related type that might be an embeddable
-            if (!BASIC_JPA_TYPES.contains(metadata.relatedType())) {
-                String relatedType = metadata.relatedType();
+            if (!BASIC_JPA_TYPES.contains(metadata.relatedTypeFqcn)) {
+                Element relatedType = metadata.relatedType();
 
                 // Skip if already processed
-                if (collectedEmbeddable.containsKey(relatedType)) {
+                if (collectedEmbeddable.containsKey(metadata.relatedTypeFqcn)) {
                     continue;
                 }
 
                 // Try to load the type and check if it's an embeddable
-                TypeElement typeElement = processingEnv.getElementUtils().getTypeElement(relatedType);
-
-                if (typeElement != null
-                        && AnnotationProcessorUtils.hasAnnotation(typeElement, "jakarta.persistence.Embeddable")) {
-                    messager.printMessage(Diagnostic.Kind.NOTE,
-                            "📎 Analysing referenced embeddable: " + relatedType);
+                if (AnnotationProcessorUtils.hasAnnotation(relatedType, "jakarta.persistence.Embeddable")) {
+                    messager.printNote("📎 Analysing referenced embeddable: " + relatedType);
 
                     // Extract fields from embeddable
-                    Map<String, SimplePersistenceMetadata> embeddableFields = extractFields(typeElement, typeElement,
-                            messager);
-                    collectedEmbeddable.put(relatedType, embeddableFields);
+                    Map<String, SimplePersistenceMetadata> embeddableFields = extractFields((TypeElement) relatedType, (TypeElement) relatedType);
+                    collectedEmbeddable.put(metadata.relatedTypeFqcn, embeddableFields);
 
-                    messager.printMessage(Diagnostic.Kind.NOTE,
-                            "✅ Extracted " + embeddableFields.size() + " fields from embeddable "
-                                    + typeElement.getSimpleName());
+                    messager.printNote("✅ Extracted " + embeddableFields.size() + " fields from embeddable " + relatedType.getSimpleName());
 
                     // Recursive: process embeddables referenced by this embeddable
-                    processReferencedEmbeddables(embeddableFields, messager);
+                    processReferencedEmbeddables(embeddableFields);
                 }
             }
         }
@@ -305,8 +299,6 @@ public class EntityProcessor {
      * </p>
      */
     public void generateProviderImpl() {
-        Messager messager = processingEnv.getMessager();
-
         // Count entities vs embeddables for better logging
         long entityCount = collectedRegistry.keySet().stream()
                 .filter(fqcn -> {
@@ -461,10 +453,9 @@ public class EntityProcessor {
      * </ul>
      *
      * @param entityType the entity type to inspect
-     * @param messager   the messager used to log diagnostic messages
      * @return {@code true} if the entity should be skipped, {@code false} otherwise
      */
-    private boolean shouldSkipEntity(TypeElement entityType, Messager messager) {
+    private boolean shouldSkipEntity(TypeElement entityType) {
         String className = entityType.getQualifiedName().toString();
 
         if (!entityType.getModifiers().contains(Modifier.PUBLIC)) {
@@ -505,48 +496,37 @@ public class EntityProcessor {
      * </p>
      *
      * @param field    the field to analyse
-     * @param messager the messager used for reporting validation issues
      * @return the corresponding {@link SimplePersistenceMetadata} instance
      */
-    private SimplePersistenceMetadata analyzeField(VariableElement field, Messager messager) {
+    private SimplePersistenceMetadata analyzeField(VariableElement field) {
         boolean isId = AnnotationProcessorUtils.hasAnnotation(field, "jakarta.persistence.Id");
         boolean isEmbeddedId = AnnotationProcessorUtils.hasAnnotation(field, "jakarta.persistence.EmbeddedId");
         boolean isCollection = isCollection(field.asType());
-        boolean isElementCollection = AnnotationProcessorUtils.hasAnnotation(field,
-                "jakarta.persistence.ElementCollection");
         boolean isEmbedded = AnnotationProcessorUtils.hasAnnotation(field, "jakarta.persistence.Embedded");
 
-        String relatedType = resolveRelatedType(field, isElementCollection, messager);
         String mappedIdField = extractMappedId(field);
 
         SimplePersistenceMetadata metadata;
+        String fieldTypeFqcn = AnnotationProcessorUtils.getTypeNameWithoutAnnotations(field.asType());
+        TypeElement fieldType = elementUtils.getTypeElement(fieldTypeFqcn);
+
 
         if (isId) {
-            metadata = SimplePersistenceMetadata
-                    .id(AnnotationProcessorUtils.getTypeNameWithoutAnnotations(field.asType()));
+            metadata = SimplePersistenceMetadata.id(fieldType,fieldTypeFqcn);
         } else if (isEmbeddedId) {
-            String typeName = AnnotationProcessorUtils.getTypeNameWithoutAnnotations(field.asType());
-            if (!isEmbeddableType(typeName)) {
-                messager.printMessage(Diagnostic.Kind.ERROR,
-                        typeName + " is not embeddable. Missing @jakarta.persistence.Embeddable annotation on it.",
-                        field);
+            if (!isEmbeddableType(fieldType)) {
+                messager.printError(fieldTypeFqcn + " is not embeddable. Missing @jakarta.persistence.Embeddable annotation on it.", field);
             }
-            metadata = SimplePersistenceMetadata.id(typeName);
+            metadata = SimplePersistenceMetadata.id(fieldType,fieldTypeFqcn);
         } else if (isEmbedded) {
-            String typeName = AnnotationProcessorUtils.getTypeNameWithoutAnnotations(field.asType());
-            if (!isEmbeddableType(typeName)) {
-                messager.printMessage(Diagnostic.Kind.ERROR,
-                        typeName + " is not embeddable. Missing @jakarta.persistence.Embeddable annotation on it.",
-                        field);
+            if (!isEmbeddableType(fieldType)) {
+                messager.printError(fieldTypeFqcn + " is not embeddable. Missing @jakarta.persistence.Embeddable annotation on it.", field);
             }
-            metadata = SimplePersistenceMetadata.scalar(typeName);
+            metadata = SimplePersistenceMetadata.scalar(fieldType,fieldTypeFqcn);
         } else if (isCollection) {
-            CollectionMetadata collectionMetadata = analyzeCollection(field, relatedType, messager);
-            metadata = SimplePersistenceMetadata.collection(collectionMetadata,
-                    relatedType != null ? relatedType : "java.lang.Object");
+            metadata = SimplePersistenceMetadata.collection(field, typeUtils);
         } else {
-            metadata = SimplePersistenceMetadata
-                    .scalar(AnnotationProcessorUtils.getTypeNameWithoutAnnotations(field.asType()));
+            metadata = SimplePersistenceMetadata.scalar(fieldType,fieldTypeFqcn);
         }
 
         if (mappedIdField != null) {
@@ -557,109 +537,29 @@ public class EntityProcessor {
     }
 
     /**
-     * Builds {@link CollectionMetadata} for a collection-valued association or
-     * element collection.
-     * <p>
-     * This includes the collection kind (scalar/entity/embeddable), collection type
-     * (list, set, map, etc.),
-     * {@code mappedBy} side when defined, and any ordering expression declared via
-     * {@code @OrderBy}.
-     * </p>
-     *
-     * @param field       the collection field
-     * @param elementType the resolved element type as a fully qualified name
-     * @param messager    the messager used for reporting potential issues
-     * @return a {@link CollectionMetadata} describing the collection
-     */
-    private CollectionMetadata analyzeCollection(VariableElement field, String elementType, Messager messager) {
-        CollectionKind kind = AnnotationProcessorUtils.determineCollectionKind(elementType, processingEnv);
-        CollectionType collectionType = AnnotationProcessorUtils.determineCollectionType(field.asType());
-        Optional<String> mappedBy = extractMappedBy(field);
-        Optional<String> orderBy = extractOrderBy(field);
-
-        return new CollectionMetadata(kind, collectionType, mappedBy, orderBy);
-    }
-
-    /**
-     * Extracts the {@code mappedBy} attribute from {@code @OneToMany} or
-     * {@code @ManyToMany}
-     * annotations declared on the given field, if present.
-     *
-     * @param field the association field to inspect
-     * @return an {@link Optional} containing the {@code mappedBy} attribute, or
-     *         empty if none is declared
-     */
-    private Optional<String> extractMappedBy(VariableElement field) {
-        for (AnnotationMirror ann : field.getAnnotationMirrors()) {
-            String annType = ann.getAnnotationType().toString();
-            if (annType.equals("jakarta.persistence.OneToMany") || annType.equals("jakarta.persistence.ManyToMany")) {
-                for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : ann.getElementValues()
-                        .entrySet()) {
-                    if (entry.getKey().getSimpleName().toString().equals("mappedBy")) {
-                        return Optional.of(entry.getValue().getValue().toString());
-                    }
-                }
-            }
-        }
-        return Optional.empty();
-    }
-
-    /**
-     * Extracts the {@code value} attribute from {@code @OrderBy} declared on the
-     * given field.
-     * <p>
-     * If {@code @OrderBy} is present without an explicit value, an empty string is
-     * returned
-     * to indicate the default ordering.
-     * </p>
-     *
-     * @param field the collection field to inspect
-     * @return an {@link Optional} containing the ordering clause or empty if no
-     *         {@code @OrderBy} is present
-     */
-    private Optional<String> extractOrderBy(VariableElement field) {
-        for (AnnotationMirror ann : field.getAnnotationMirrors()) {
-            if (ann.getAnnotationType().toString().equals("jakarta.persistence.OrderBy")) {
-                for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : ann.getElementValues()
-                        .entrySet()) {
-                    if (entry.getKey().getSimpleName().toString().equals("value")) {
-                        return Optional.of(entry.getValue().getValue().toString());
-                    }
-                }
-                return Optional.of("");
-            }
-        }
-        return Optional.empty();
-    }
-
-    /**
-     * Indicates whether the given fully qualified type name refers to an
+     * Indicates whether the given type refers to an
      * {@code @Embeddable} type.
      *
-     * @param typeName the fully qualified type name, may be {@code null}
+     * @param typeElement the qualified type name, may be {@code null}
      * @return {@code true} if the type is an embeddable, {@code false} otherwise
      */
-    private boolean isEmbeddableType(String typeName) {
-        if (typeName == null)
+    private boolean isEmbeddableType(TypeElement typeElement) {
+        if (typeElement == null)
             return false;
-        TypeElement typeElement = processingEnv.getElementUtils().getTypeElement(typeName);
-        return typeElement != null
-                && AnnotationProcessorUtils.hasAnnotation(typeElement, "jakarta.persistence.Embeddable");
+        return AnnotationProcessorUtils.hasAnnotation(typeElement, "jakarta.persistence.Embeddable");
     }
 
     /**
      * Determines whether the given type mirror represents a
-     * {@link java.util.Collection}-like type.
+     * {@link Collection}-like type.
      *
      * @param type the type mirror to check
      * @return {@code true} if the type is assignable to
      *         {@code java.util.Collection}, {@code false} otherwise
      */
     private boolean isCollection(TypeMirror type) {
-        Types types = processingEnv.getTypeUtils();
-        TypeMirror collectionType = processingEnv.getElementUtils()
-                .getTypeElement("java.util.Collection").asType();
-        return types.isAssignable(types.erasure(type), types.erasure(collectionType));
+        TypeMirror collectionType = elementUtils.getTypeElement("java.util.Collection").asType();
+        return typeUtils.isAssignable(typeUtils.erasure(type), typeUtils.erasure(collectionType));
     }
 
     /**
@@ -685,15 +585,17 @@ public class EntityProcessor {
      * @return the fully qualified related type name, or {@code null} if it cannot
      *         be determined
      */
-    private String resolveRelatedType(VariableElement field, boolean isElementCollection, Messager messager) {
+    private TypeElement resolveRelatedType(VariableElement field, boolean isElementCollection, Messager messager) {
         TypeMirror type = field.asType();
+
+        String typeFqcn = null;
         if (type instanceof DeclaredType dt) {
             Element target = dt.asElement();
 
             if (!dt.getTypeArguments().isEmpty()) {
-                return AnnotationProcessorUtils.getTypeNameWithoutAnnotations(dt.getTypeArguments().getFirst());
+                typeFqcn = AnnotationProcessorUtils.getTypeNameWithoutAnnotations(dt.getTypeArguments().getFirst());
             } else if (isElementCollection) {
-                return AnnotationProcessorUtils.getTypeNameWithoutAnnotations(dt);
+                typeFqcn = AnnotationProcessorUtils.getTypeNameWithoutAnnotations(dt);
             }
 
             for (AnnotationMirror ann : field.getAnnotationMirrors()) {
@@ -704,15 +606,16 @@ public class EntityProcessor {
                         messager.printMessage(Diagnostic.Kind.WARNING,
                                 "⚠️ Relation to non-@Entity class: " + target, field);
                     }
-                    return AnnotationProcessorUtils.getTypeNameWithoutAnnotations(dt);
+                    typeFqcn = AnnotationProcessorUtils.getTypeNameWithoutAnnotations(dt);
+                    break;
                 }
             }
 
             if (AnnotationProcessorUtils.hasAnnotation(field, "jakarta.persistence.Embedded")) {
-                return AnnotationProcessorUtils.getTypeNameWithoutAnnotations(dt);
+                typeFqcn = AnnotationProcessorUtils.getTypeNameWithoutAnnotations(dt);
             }
         }
-        return null;
+        return typeFqcn != null ? elementUtils.getTypeElement(typeFqcn) : null;
     }
 
     /**
@@ -755,17 +658,17 @@ public class EntityProcessor {
     private String generateMetadataInstantiation(SimplePersistenceMetadata meta) {
         StringBuilder sb = new StringBuilder("new PersistenceMetadata(");
 
-        sb.append(meta.isId()).append(", ");
-        sb.append(meta.relatedType()).append(".class").append(", ");
+        sb.append(meta.isId).append(", ");
+        sb.append(meta.relatedTypeFqcn).append(".class").append(", ");
 
-        if (meta.mappedIdField().isPresent()) {
-            sb.append("Optional.of(\"").append(meta.mappedIdField().get()).append("\"), ");
+        if (meta.mappedIdField.isPresent()) {
+            sb.append("Optional.of(\"").append(meta.mappedIdField.get()).append("\"), ");
         } else {
             sb.append("Optional.empty(), ");
         }
 
-        if (meta.collection().isPresent()) {
-            CollectionMetadata cm = meta.collection().get();
+        if (meta.collection.isPresent()) {
+            CollectionMetadata cm = meta.collection.get();
             sb.append("Optional.of(new CollectionMetadata(");
             sb.append("CollectionKind.").append(cm.kind().name()).append(", ");
             sb.append("CollectionType.").append(cm.collectionType().name()).append(", ");
@@ -812,7 +715,8 @@ public class EntityProcessor {
      * </p>
      *
      * @param isId          whether the field is part of the entity identifier
-     * @param relatedType   the related type name for this attribute
+     * @param relatedType   the related type for this attribute (maybe {@code null} for primitives)
+     * @param relatedTypeFqcn   the related type for this attribute. Never null.
      * @param mappedIdField optional mapped identifier field name for
      *                      {@code @MapsId}
      * @param collection    optional collection metadata if the attribute is
@@ -820,7 +724,8 @@ public class EntityProcessor {
      */
     public record SimplePersistenceMetadata(
             boolean isId,
-            String relatedType,
+            Element relatedType,
+            String relatedTypeFqcn,
             Optional<String> mappedIdField,
             Optional<CollectionMetadata> collection) {
 
@@ -834,7 +739,7 @@ public class EntityProcessor {
          * @param collection    optional collection metadata
          */
         public SimplePersistenceMetadata {
-            Objects.requireNonNull(relatedType, "relatedType cannot be null");
+            Objects.requireNonNull(relatedTypeFqcn, "relatedTypeFqcn cannot be null");
             Objects.requireNonNull(mappedIdField, "mappedIdField cannot be null");
             Objects.requireNonNull(collection, "collection cannot be null");
         }
@@ -844,39 +749,136 @@ public class EntityProcessor {
         /**
          * Creates a scalar metadata entry for a non-identifier, non-collection field.
          *
-         * @param relatedType the fully qualified type name of the scalar attribute
+         * @param relatedType the type of the scalar attribute
          * @return a new {@code SimplePersistenceMetadata} instance
          */
-        public static SimplePersistenceMetadata scalar(String relatedType) {
-            return new SimplePersistenceMetadata(false, relatedType, Optional.empty(), Optional.empty());
+        public static SimplePersistenceMetadata scalar(Element relatedType, String relatedTypeFqcn) {
+            return new SimplePersistenceMetadata(false, relatedType, relatedTypeFqcn, Optional.empty(), Optional.empty());
         }
 
         /**
          * Creates an identifier metadata entry for a field annotated with {@code @Id}
          * or {@code @EmbeddedId}.
          *
-         * @param relatedType the type name of the identifier attribute or embeddable id
+         * @param relatedType the type of the identifier attribute or embeddable id
          * @return a new {@code SimplePersistenceMetadata} instance marked as identifier
          */
-        public static SimplePersistenceMetadata id(String relatedType) {
-            return new SimplePersistenceMetadata(true, relatedType, Optional.empty(), Optional.empty());
+        public static SimplePersistenceMetadata id(Element relatedType, String relatedTypeFqcn) {
+            return new SimplePersistenceMetadata(true, relatedType, relatedTypeFqcn,Optional.empty(), Optional.empty());
         }
 
         /**
          * Creates a collection metadata entry for a collection-valued attribute.
          *
-         * @param collectionMetadata the collection metadata describing kind, type and
-         *                           mapping
-         * @param elementType        the element type name stored in the collection
+         * @param col the collection
          * @return a new {@code SimplePersistenceMetadata} instance representing a
          *         collection attribute
          */
-        public static SimplePersistenceMetadata collection(CollectionMetadata collectionMetadata, String elementType) {
-            return new SimplePersistenceMetadata(
-                    false,
-                    elementType,
-                    Optional.empty(),
-                    Optional.of(collectionMetadata));
+        public static SimplePersistenceMetadata collection(VariableElement col, Types typeUtils) {
+            TypeMirror typeMirror = col.asType();
+
+            if (typeMirror instanceof DeclaredType dt) {
+                TypeElement item = (TypeElement) typeUtils.asElement( dt.getTypeArguments().getFirst() );
+                return new SimplePersistenceMetadata(
+                        false,
+                        item,
+                        item.toString(),
+                        Optional.empty(),
+                        Optional.of(analyzeCollection(col, item, typeUtils))
+                );
+            } else if (typeMirror instanceof ArrayType arrayType) {
+                // Cas tableau : on récupère le type élémentaire
+                TypeMirror componentType = arrayType.getComponentType();
+                if (componentType instanceof DeclaredType compDeclared) {
+                    TypeElement item = (TypeElement) compDeclared.asElement();
+                    return new SimplePersistenceMetadata(
+                            false,
+                            item,
+                            componentType.toString(),
+                            Optional.empty(),
+                            Optional.of(analyzeCollection(col, item, typeUtils))
+                    );
+                }
+            }
+
+            throw new IllegalArgumentException("Strange collection type");
+        }
+
+        /**
+         * Builds {@link CollectionMetadata} for a collection-valued association or
+         * element collection.
+         * <p>
+         * This includes the collection kind (scalar/entity/embeddable), collection type
+         * (list, set, map, etc.),
+         * {@code mappedBy} side when defined, and any ordering expression declared via
+         * {@code @OrderBy}.
+         * </p>
+         *
+         * @param collection the collection field
+         * @return a {@link CollectionMetadata} describing the collection
+         */
+        private static CollectionMetadata analyzeCollection(VariableElement collection, TypeElement item, Types typeUtils) {
+            TypeElement element = (TypeElement) typeUtils.asElement(collection.asType());
+
+            CollectionKind kind = AnnotationProcessorUtils.determineCollectionKind(item);
+            CollectionType collectionType = AnnotationProcessorUtils.determineCollectionType(collection.asType());
+            Optional<String> mappedBy = extractMappedBy(collection);
+            Optional<String> orderBy = extractOrderBy(collection);
+
+            return new CollectionMetadata(kind, collectionType, mappedBy, orderBy);
+        }
+
+
+        /**
+         * Extracts the {@code mappedBy} attribute from {@code @OneToMany} or
+         * {@code @ManyToMany}
+         * annotations declared on the given field, if present.
+         *
+         * @param field the association field to inspect
+         * @return an {@link Optional} containing the {@code mappedBy} attribute, or
+         *         empty if none is declared
+         */
+        private static Optional<String> extractMappedBy(VariableElement field) {
+            for (AnnotationMirror ann : field.getAnnotationMirrors()) {
+                String annType = ann.getAnnotationType().toString();
+                if (annType.equals("jakarta.persistence.OneToMany") || annType.equals("jakarta.persistence.ManyToMany")) {
+                    for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : ann.getElementValues()
+                            .entrySet()) {
+                        if (entry.getKey().getSimpleName().toString().equals("mappedBy")) {
+                            return Optional.of(entry.getValue().getValue().toString());
+                        }
+                    }
+                }
+            }
+            return Optional.empty();
+        }
+
+        /**
+         * Extracts the {@code value} attribute from {@code @OrderBy} declared on the
+         * given field.
+         * <p>
+         * If {@code @OrderBy} is present without an explicit value, an empty string is
+         * returned
+         * to indicate the default ordering.
+         * </p>
+         *
+         * @param field the collection field to inspect
+         * @return an {@link Optional} containing the ordering clause or empty if no
+         *         {@code @OrderBy} is present
+         */
+        private static Optional<String> extractOrderBy(VariableElement field) {
+            for (AnnotationMirror ann : field.getAnnotationMirrors()) {
+                if (ann.getAnnotationType().toString().equals("jakarta.persistence.OrderBy")) {
+                    for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry : ann.getElementValues()
+                            .entrySet()) {
+                        if (entry.getKey().getSimpleName().toString().equals("value")) {
+                            return Optional.of(entry.getValue().getValue().toString());
+                        }
+                    }
+                    return Optional.of("");
+                }
+            }
+            return Optional.empty();
         }
 
         /**
@@ -888,7 +890,7 @@ public class EntityProcessor {
          *         information
          */
         public SimplePersistenceMetadata withMappedId(String fieldName) {
-            return new SimplePersistenceMetadata(isId, relatedType, Optional.of(fieldName), collection);
+            return new SimplePersistenceMetadata(isId, relatedType, relatedTypeFqcn, Optional.of(fieldName), collection);
         }
 
         /**

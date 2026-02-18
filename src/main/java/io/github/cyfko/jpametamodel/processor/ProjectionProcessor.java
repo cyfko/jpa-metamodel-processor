@@ -32,13 +32,19 @@ import static io.github.cyfko.jpametamodel.processor.StringUtils.toJavaNamingAwa
  */
 public class ProjectionProcessor {
     private final ProcessingEnvironment processingEnv;
+    private final Elements elementUtils;
+    private final Types typeUtils;
+
     private final EntityProcessor entityProcessor;
     private final Map<String, SimpleProjectionMetadata> projectionRegistry = new LinkedHashMap<>();
     private final List<TypeElement> referencedProjections = new ArrayList<>();
 
+
     public ProjectionProcessor(ProcessingEnvironment processingEnv, EntityProcessor entityProcessor) {
         this.processingEnv = processingEnv;
+        this.elementUtils = processingEnv.getElementUtils();
         this.entityProcessor = entityProcessor;
+        this.typeUtils = processingEnv.getTypeUtils();
     }
 
     /**
@@ -66,8 +72,7 @@ public class ProjectionProcessor {
         for (TypeElement dtoClass : referencedProjections) {
             try {
                 processProjection(dtoClass, messager);
-                messager.printMessage(Diagnostic.Kind.NOTE,
-                        "✅ Processed " + projectionRegistry.size() + " projections");
+                messager.printNote("✅ Processed " + projectionRegistry.size() + " projections");
             } catch (Exception e) {
                 messager.printError(e.getMessage(), dtoClass);
             }
@@ -91,7 +96,7 @@ public class ProjectionProcessor {
      * projection metadata.
      * <p>
      * The generated class is written via the
-     * {@link javax.annotation.processing.Filer} and contains
+     * {@link Filer} and contains
      * a static unmodifiable registry initialized at class-load time. It is safe to
      * invoke this
      * method only after all relevant {@code @Projection} DTOs have been processed.
@@ -234,14 +239,11 @@ public class ProjectionProcessor {
                         }
 
                         // Validate all dependencies exist in entity
-                        final Map<String, String> depsToFqcnMapping = new HashMap<>();
+                        final Map<String, TypeMirror> depsToTypes = new HashMap<>();
                         for (String dependency : dependencies) {
-                            String errorMessage = validateEntityFieldPath(entityClassName, dependency,
-                                    fqcn -> depsToFqcnMapping.put(dependency, fqcn));
+                            String errorMessage = validateEntityFieldPath(entityClassName, dependency, type -> depsToTypes.put(dependency, type));
                             if (errorMessage != null) {
-                                messager.printMessage(Diagnostic.Kind.ERROR,
-                                        String.format("Computed field '%s': %s", dtoField, errorMessage),
-                                        dtoClass);
+                                messager.printError(String.format("Computed field '%s': %s", dtoField, errorMessage), dtoClass);
                                 return;
                             }
                         }
@@ -293,9 +295,9 @@ public class ProjectionProcessor {
                         );
 
                         try {
-                            field = validateComputeMethodWithTransformation(field, methodElement, computers, depsToFqcnMapping);
+                            field = validateComputeMethodWithTransformation(field, methodElement, computers, depsToTypes);
                         } catch (Exception e) {
-                            printComputationMethodError(dtoClass, methodElement, field, e.getMessage(), computers, depsToFqcnMapping);
+                            printComputationMethodError(dtoClass, methodElement, field, e.getMessage(), computers, depsToTypes);
                             return;
                         }
 
@@ -347,14 +349,14 @@ public class ProjectionProcessor {
         TypeMirror dtoType = dtoMethod.getReturnType();
         String dtoName = toJavaNamingAwareFieldName(dtoMethod);
         boolean isCollection = isCollection(dtoType);
-        String itemType = resolveRelatedType(dtoType, isCollection);
+        TypeElement itemType = resolveRelatedType(dtoType, isCollection);
 
         if (isCollection) {
             DirectMapping.CollectionMetadata collectionMetadata = analyzeCollection(dtoType, itemType);
             directMappings.add(new SimpleDirectMapping(
                     dtoName,
                     entityField,
-                    itemType,
+                    itemType.asType().toString(),
                     Optional.of(collectionMetadata)));
         } else {
             directMappings.add(new SimpleDirectMapping(
@@ -364,7 +366,7 @@ public class ProjectionProcessor {
                     Optional.empty()));
         }
 
-        messager.printMessage(Diagnostic.Kind.NOTE, "  ✅ " + dtoName + " → " + entityField);
+        messager.printNote("  ✅ " + dtoName + " → " + entityField);
     }
 
     /**
@@ -386,7 +388,7 @@ public class ProjectionProcessor {
      * @param field             the computed field metadata
      * @param errMessage        the base error message describing the mismatch
      * @param computers         the list of configured computation providers
-     * @param depsToFqcnMapping a mapping of dependency paths to their fully
+     * @param depsToTypes a mapping of dependency paths to their fully
      *                          qualified types
      */
     private void printComputationMethodError(
@@ -395,14 +397,14 @@ public class ProjectionProcessor {
             SimpleComputedField field,
             String errMessage,
             List<SimpleComputationProvider> computers,
-            Map<String, String> depsToFqcnMapping) {
+            Map<String, TypeMirror> depsToTypes) {
 
         String expectedMethodSignature = String.format(
                 "public %s %s(%s);",
                 methodElement.getReturnType().toString(),
                 field.computedByMethod != null ? field.computedByMethod : "to" + StringUtils.capitalize(field.dtoField()),
                 String.join(", ", Arrays.stream(field.dependencies())
-                        .map(d -> depsToFqcnMapping.get(d) + " " + getLastSegment(d, "\\."))
+                        .map(d -> depsToTypes.get(d) + " " + getLastSegment(d, "\\."))
                         .toList()));
 
         if (field.computedByClass != null) {
@@ -473,14 +475,14 @@ public class ProjectionProcessor {
      * @param field             the computed field descriptor
      * @param informativeMethod the @Computed annotated method
      * @param providers         the list of available computation providers
-     * @param depsToFqcnMapping mapping from dependency paths to their FQCNs
+     * @param depsToTypes mapping from dependency paths to their types
      * @return ValidationResult containing resolved methods or error message
      */
     private SimpleComputedField validateComputeMethodWithTransformation(
             SimpleComputedField field,
             ExecutableElement informativeMethod,
             List<SimpleComputationProvider> providers,
-            Map<String, String> depsToFqcnMapping) {
+            Map<String, TypeMirror> depsToTypes) {
 
         Elements elements = processingEnv.getElementUtils();
         Types types = processingEnv.getTypeUtils();
@@ -522,18 +524,19 @@ public class ProjectionProcessor {
                     );
                 }
 
-                // Verify parameter types
+                // Verify parameter types WITH autoboxing/unboxing and numeric promotions support
                 for (int i = 0; i < parameters.size(); i++) {
-                    String methodParamFqcn = parameters.get(i).asType().toString();
-                    String dependencyFqcn = depsToFqcnMapping.get(field.dependencies()[i]);
-                    if (!methodParamFqcn.equals(dependencyFqcn)) {
+                    TypeMirror methodParamType = parameters.get(i).asType();
+                    TypeMirror dependencyType = depsToTypes.get(field.dependencies()[i]);
+
+                    if (!AnnotationProcessorUtils.areTypesCompatible(dependencyType, methodParamType, types)) {
                         throw new IllegalStateException( String.format(
                                 "Method %s.%s has incompatible type on parameter[%d]. Required: %s, Found: %s.",
                                 provider.className,
                                 computedByMethodName,
                                 i,
-                                dependencyFqcn,
-                                methodParamFqcn)
+                                dependencyType,
+                                methodParamType)
                         );
                     }
                 }
@@ -688,133 +691,9 @@ public class ProjectionProcessor {
     }
 
     /**
-     * Validates that a compute method exists for the given computed field in one of
-     * the configured computation provider classes.
-     * <p>
-     * Validation covers:
-     * </p>
-     * <ul>
-     * <li>Method name convention: {@code to} + capitalized DTO field name.</li>
-     * <li>Exact return type matching the computed DTO field type.</li>
-     * <li>Exact parameter count matching the number of declared dependencies.</li>
-     * <li>Parameter type matching with autoboxing/unboxing and numeric promotions support.</li>
-     * </ul>
-     * <p>
-     * The validation ensures that at runtime, Java's automatic type conversions
-     * (autoboxing, unboxing, and numeric promotions) will allow successful method invocation.
-     * </p>
-     *
-     * @param field             the computed field descriptor
-     * @param informativeMethod the @Computed annotated method
-     * @param computers         the list of available computation providers
-     * @param depsToFqcnMapping mapping from dependency paths to their fully
-     *                          qualified class names
-     * @return {@code null} if a compatible compute method is found, otherwise a
-     *         human-readable error message
-     */
-    private String validateComputeMethod(
-            SimpleComputedField field,
-            ExecutableElement informativeMethod,
-            List<SimpleComputationProvider> computers,
-            Map<String, String> depsToFqcnMapping) {
-
-        TypeMirror fieldType = informativeMethod.getReturnType();
-        Elements elements = processingEnv.getElementUtils();
-        Types types = processingEnv.getTypeUtils();
-
-        final String methodName = (field.computedByMethod != null && !field.computedByMethod().isBlank())
-                ? field.computedByMethod()
-                : "to" + StringUtils.capitalize(field.dtoField());
-
-        if (field.computedByClass != null) {
-            computers = List.of(new SimpleComputationProvider(field.computedByClass, null));
-        }
-
-        for (SimpleComputationProvider provider : computers) {
-            TypeElement providerElement = elements.getTypeElement(provider.className());
-            if (providerElement == null)
-                continue; // class not found
-
-            for (Element enclosed : providerElement.getEnclosedElements()) {
-                if (enclosed.getKind() != ElementKind.METHOD)
-                    continue;
-
-                ExecutableElement method = (ExecutableElement) enclosed;
-                if (!methodName.equals(method.getSimpleName().toString()))
-                    continue;
-
-                // Verify return type
-                TypeMirror returnType = method.getReturnType();
-                if (!types.isSameType(returnType, fieldType)) {
-                    return String.format("Method %s.%s has incompatible return type. Required: %s, Found: %s.",
-                            provider.className,
-                            methodName,
-                            fieldType.toString(),
-                            returnType.toString());
-                }
-
-                // Verify parameter count
-                List<? extends VariableElement> parameters = method.getParameters();
-                if (parameters.size() != field.dependencies().length) {
-                    return String.format("Method %s.%s has incompatible parameters count. Required: %s, Found: %s.",
-                            provider.className,
-                            methodName,
-                            field.dependencies().length,
-                            parameters.size());
-                }
-
-                // Verify parameter types WITH autoboxing/unboxing and numeric promotions support
-                boolean allParamsMatch = true;
-                String firstMismatch = null;
-
-                for (int i = 0; i < parameters.size(); i++) {
-                    TypeMirror methodParamType = parameters.get(i).asType();
-                    String dependencyFqcn = depsToFqcnMapping.get(field.dependencies()[i]);
-
-                    // Convert FQCN to TypeMirror for robust comparison
-                    TypeMirror dependencyType = AnnotationProcessorUtils.resolveTypeMirror(dependencyFqcn, elements, types);
-
-                    if (dependencyType == null) {
-                        allParamsMatch = false;
-                        firstMismatch = String.format(
-                                "Method %s.%s has incompatible type on parameter[%d]. Required: %s (type not resolvable), Found: %s.",
-                                provider.className,
-                                methodName,
-                                i,
-                                dependencyFqcn,
-                                methodParamType);
-                        break;
-                    }
-
-                    if (!AnnotationProcessorUtils.areTypesCompatible(dependencyType, methodParamType, types)) {
-                        allParamsMatch = false;
-                        firstMismatch = String.format(
-                                "Method %s.%s has incompatible type on parameter[%d]. Required: %s, Found: %s.",
-                                provider.className,
-                                methodName,
-                                i,
-                                dependencyFqcn,
-                                methodParamType);
-                        break;
-                    }
-                }
-
-                if (!allParamsMatch) {
-                    return firstMismatch;
-                }
-
-                return null; // ✅ Valid method found
-            }
-        }
-
-        return String.format("No matching provider found for @Computed method '%s'.",
-                informativeMethod.getSimpleName());
-    }
-
-    /**
      * Determines whether the given type represents a
-     * {@link java.util.Collection}-like type
-     * (including subtypes such as {@link java.util.List} or {@link java.util.Set}).
+     * {@link Collection}-like type
+     * (including subtypes such as {@link List} or {@link Set}).
      *
      * @param type the type to inspect
      * @return {@code true} if the type is assignable to
@@ -843,13 +722,13 @@ public class ProjectionProcessor {
      * @return the fully qualified name of the element type, or {@code null} if it
      *         cannot be determined
      */
-    private String resolveRelatedType(TypeMirror field, boolean isElementCollection) {
+    private TypeElement resolveRelatedType(TypeMirror field, boolean isElementCollection) {
         if (field instanceof DeclaredType dt) {
 
             if (!dt.getTypeArguments().isEmpty()) {
-                return AnnotationProcessorUtils.getTypeNameWithoutAnnotations(dt.getTypeArguments().getFirst());
+                return elementUtils.getTypeElement( AnnotationProcessorUtils.getTypeNameWithoutAnnotations(dt.getTypeArguments().getFirst()) );
             } else if (isElementCollection) {
-                return AnnotationProcessorUtils.getTypeNameWithoutAnnotations(dt);
+                return elementUtils.getTypeElement( AnnotationProcessorUtils.getTypeNameWithoutAnnotations(dt) );
             }
         }
         return null;
@@ -864,8 +743,8 @@ public class ProjectionProcessor {
      * @return collection metadata describing the kind (scalar, entity, embeddable)
      *         and collection type
      */
-    private DirectMapping.CollectionMetadata analyzeCollection(TypeMirror field, String elementType) {
-        CollectionKind kind = AnnotationProcessorUtils.determineCollectionKind(elementType, processingEnv);
+    private DirectMapping.CollectionMetadata analyzeCollection(TypeMirror field, TypeElement elementType) {
+        CollectionKind kind = AnnotationProcessorUtils.determineCollectionKind(elementType);
         CollectionType collectionType = AnnotationProcessorUtils.determineCollectionType(field);
 
         return new DirectMapping.CollectionMetadata(kind, collectionType);
@@ -959,16 +838,15 @@ public class ProjectionProcessor {
      *                        exist in registry)
      * @param fieldPath       the dotted path to validate (e.g.
      *                        {@code "address.city.name"})
-     * @param withFqcn        optional consumer to receive the FQCN of the final
-     *                        field's type,
-     *                        called only if validation succeeds; can be
+     * @param withType        optional consumer to receive the type of the final
+     *                        field. Called only if validation succeeds; can be
      *                        {@code null}
      * @return {@code null} if the path is valid, or an error message describing the
      *         validation failure
      *
      * @see #getSimpleName(String) for the simple class name used in error messages
      */
-    public String validateEntityFieldPath(String entityClassName, String fieldPath, Consumer<String> withFqcn) {
+    public String validateEntityFieldPath(String entityClassName, String fieldPath, Consumer<TypeMirror> withType) {
         // Get entity metadata from EntityRegistryProcessor
         Map<String, Map<String, EntityProcessor.SimplePersistenceMetadata>> entityRegistry = entityProcessor
                 .getRegistry();
@@ -988,8 +866,7 @@ public class ProjectionProcessor {
             String segment = segments[i];
 
             // Get metadata for current class
-            Map<String, EntityProcessor.SimplePersistenceMetadata> currentMetadata = entityRegistry
-                    .get(currentClassName);
+            Map<String, EntityProcessor.SimplePersistenceMetadata> currentMetadata = entityRegistry.get(currentClassName);
             if (currentMetadata == null) {
                 currentMetadata = embeddableRegistry.get(currentClassName);
             }
@@ -1001,28 +878,27 @@ public class ProjectionProcessor {
             // Check if field exists in metadata
             EntityProcessor.SimplePersistenceMetadata fieldMetadata = currentMetadata.get(segment);
             if (fieldMetadata == null) {
-                return String.format("Field '%s' not found in entity %s (path: %s)", segment,
-                        getSimpleName(currentClassName), fieldPath);
+                return String.format("Field '%s' not found in entity %s (path: %s)", segment, getSimpleName(currentClassName), fieldPath);
             }
 
             // If not the last segment, navigate to related type
+            TypeMirror type = fieldMetadata.relatedType() != null ?
+                    fieldMetadata.relatedType().asType() :
+                    AnnotationProcessorUtils.getPrimitiveType(fieldMetadata.relatedTypeFqcn(), typeUtils);
+
             if (i < segments.length - 1) {
-                if (BASIC_JPA_TYPES.contains(fieldMetadata.relatedType())) {
-                    return String.format("Cannot navigate through scalar field '%s' in %s", segment,
-                            getSimpleName(currentClassName));
+                if (BASIC_JPA_TYPES.contains(fieldMetadata.relatedTypeFqcn())) {
+                    return String.format("Cannot navigate through scalar field '%s' in %s", segment, getSimpleName(currentClassName));
                 }
 
-                currentClassName = fieldMetadata.relatedType();
-            } else if (withFqcn != null) {
-                // For collections, return the full parameterized type (e.g.,
-                // java.util.List<User>)
+                currentClassName = fieldMetadata.relatedTypeFqcn();
+            } else if (withType != null) {
+                // For collections, return the full parameterized type (e.g., java.util.List<User>)
                 if (fieldMetadata.isCollection() && fieldMetadata.collection().isPresent()) {
-                    String fullType = buildCollectionTypeName(
-                            fieldMetadata.collection().get().collectionType(),
-                            fieldMetadata.relatedType());
-                    withFqcn.accept(fullType);
+                    TypeMirror fullType = buildCollectionTypeName(fieldMetadata.collection().get().collectionType(), type);
+                    withType.accept(fullType);
                 } else {
-                    withFqcn.accept(fieldMetadata.relatedType());
+                    withType.accept(type);
                 }
             }
         }
@@ -1094,7 +970,7 @@ public class ProjectionProcessor {
                 return true; // Found a collection in the path
             }
 
-            currentClassName = fieldMetadata.relatedType();
+            currentClassName = fieldMetadata.relatedType().asType().toString();
         }
         return false;
     }
@@ -1310,18 +1186,25 @@ public class ProjectionProcessor {
      * </p>
      *
      * @param collectionType the type of collection (LIST, SET, MAP, COLLECTION)
-     * @param elementType    the fully qualified element type name
+     * @param item the element type within collection
      * @return the full parameterized type string
      */
-    private String buildCollectionTypeName(CollectionType collectionType, String elementType) {
+    private TypeMirror buildCollectionTypeName(CollectionType collectionType, TypeMirror item) {
         String containerClass = switch (collectionType) {
             case LIST -> "java.util.List";
             case SET -> "java.util.Set";
             case MAP -> "java.util.Map";
             case COLLECTION -> "java.util.Collection";
+            case ARRAY -> null;
             case UNKNOWN -> "java.util.Collection";
         };
-        return containerClass + "<" + elementType + ">";
+
+        if (containerClass == null) { // is an array
+            return typeUtils.getArrayType(item);
+        }
+
+        TypeElement container = elementUtils.getTypeElement(containerClass);
+        return typeUtils.getDeclaredType(container, item);
     }
 
     public void setReferencedProjection(Set<TypeElement> projectionDtos) {
