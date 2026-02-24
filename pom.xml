@@ -4,7 +4,7 @@
 
     <groupId>io.github.cyfko</groupId>
     <artifactId>jpa-metamodel-processor</artifactId>
-    <version>1.0.4-SNAPSHOT</version>
+    <version>1.0.4</version>
     <packaging>jar</packaging>
 
     <name>JPA Metamodel Processor</name>
@@ -33,7 +33,7 @@
         <connection>scm:git:git://github.com/cyfko/jpa-metamodel-processor.git</connection>
         <developerConnection>scm:git:git@github.com:cyfko/jpa-metamodel-processor.git</developerConnection>
         <url>https://github.com/cyfko/jpa-metamodel-processor/tree/main</url>
-      <tag>HEAD</tag>
+      <tag>v1.0.4</tag>
   </scm>
 
     <issueManagement>
@@ -77,14 +77,14 @@
         <dependency>
             <groupId>io.github.cyfko</groupId>
             <artifactId>projection-spec</artifactId>
-            <version>${projection-spec.version}</version>
+            <version>2.0.0</version>
         </dependency>
 
         <!-- Projection specification -->
         <dependency>
             <groupId>io.github.cyfko</groupId>
             <artifactId>jpa-projection-metamodel</artifactId>
-            <version>${projection-metamodel.version}</version>
+            <version>2.0.1</version>
         </dependency>
 
         <!-- Annotation Processing -->
